@@ -19,14 +19,42 @@
     _X DW 0
     _Y DW 0
 
+    BOOL DB 0
+
     COL BYTE 0
 
+; DRAW BOX
 DRBX MACRO X, Y, L, H
     MOV _X, X
     MOV _Y, Y
     MOV TMP_LEN, L
     MOV TMP_HIG, H
-    CALL DRAWBX
+    CALL DRAWBOX
+ENDM
+
+; DRAW LINE
+DRLN MACRO X1, Y1, X2, Y2
+    MOV _X, X1
+    MOV _Y, Y1
+    MOV T_X, X2
+    MOV T_Y, Y2
+    CALL DRAWLINE
+ENDM
+
+; DRAW HORIZONTAL LINE
+DRHLN MACRO X, Y, L
+    MOV _X, X
+    MOV _Y, Y
+    MOV TMP_LEN, L
+    CALL DRAWHLINE
+ENDM
+
+; DRAW VERTICAL LINE
+DRVLN MACRO X, Y, L
+    MOV _X, X
+    MOV _Y, Y
+    MOV TMP_LEN, L
+    CALL DRAWVLINE
 ENDM
 
 .CODE
@@ -45,48 +73,55 @@ MAIN PROC
     MOV DL, 80	 
     MOV BH, 4h
     INT 10h
-    
 
-    MOV BX, 0
-    FPS:
-        MOV AH, 2CH
-        INT 21H
-        CMP DH, TIME_TRACK
-        JE FPS
-    
-    MOV AH, 06h 
-    MOV AL, 0
-    MOV CX, 0
-    MOV DH, 80
-    MOV DL, 80	 
-    MOV BH, 4h
-    INT 10h
-    
-    CDBX BX, 150, 50, 5
 
-    CMP COL, 0
-    JNE LEF
-        INC BX
-        JMP RIG
-    LEF:
-        DEC BX
-    RIG:
-        CMP BX, 100
-        JNE SF1
-            MOV COL, 1
-        SF1:
-        CMP BX, 0
-        JNE SF2
-            MOV COL, 0
-        SF2:  
+    DRLN 50, 50, 50, 150
+    DRLN 0, 100, 100, 100
+    DRLN 0, 150, 100, 50
+    DRLN 0, 50, 100, 150
 
-    MOV TIME_TRACK, DH
-    JMP FPS
+    DRBX 150, 50, 100, 50
+
+;    MOV BX, 0
+;    FPS:
+;        MOV AH, 2CH
+;        INT 21H
+;        CMP DH, TIME_TRACK
+;        JE FPS
+;    
+;    MOV AH, 06h 
+;    MOV AL, 0
+;    MOV CX, 0
+;    MOV DH, 80
+;    MOV DL, 80	 
+;    MOV BH, 4h
+;    INT 10h
+;    
+;    DRBX BX, 150, 50, 5
+;
+;    CMP COL, 0
+;    JNE LEF
+;        INC BX
+;        JMP RIG
+;    LEF:
+;        DEC BX
+;    RIG:
+;        CMP BX, 100
+;        JNE SF1
+;            MOV COL, 1
+;        SF1:
+;        CMP BX, 0
+;        JNE SF2
+;            MOV COL, 0
+;        SF2:  
+;
+;    MOV TIME_TRACK, DH
+;    JMP FPS
 MAIN ENDP
 JMP EXIT
 
-
-DRAWBX PROC
+; TO DRAW A BOX
+DRAWBOX PROC
     MOV CX, _Y
     MOV T_Y, CX
     LOOP_H:
@@ -95,7 +130,7 @@ DRAWBX PROC
         LOOP_W:
             MOV AH, 0CH ; 
             MOV AL, 1H ;COLOUR
-            MOV CX, T_X ; INCREMENTS X AXIS ; CX IS X-AXIS
+            MOV CX, T_X ; CX IS X-AXIS
             MOV DX, T_Y ; DX IS Y-AXIS
             INT 10H ; INTERRUP FOR GRAPHICS
             INC T_X
@@ -109,10 +144,83 @@ DRAWBX PROC
         CMP T_Y, CX
     JBE LOOP_H
     RET
-DRAWBX ENDP
+DRAWBOX ENDP
 
+; TO DRAW A LINE BETWEEN COORDINATES
+DRAWLINE PROC
+    LOOP_L:
+        MOV BOOL, 0
+        MOV AH, 0CH ; 
+        MOV AL, 11 ; COLOUR
+        MOV CX, _X ; CX IS X-AXIS
+        MOV DX, _Y ; DX IS Y-AXIS
+        INT 10H ; INTERRUP FOR GRAPHICS
+        MOV CX, T_X
+        CMP _X, CX
+        JE SKIP1
+        JA DEC1
+        INC _X
+        MOV BOOL, 1
+        JMP SKIP1
+        DEC1:
+            DEC _X
+            MOV BOOL, 1
+        SKIP1:
+        MOV CX, T_Y
+        CMP _Y, CX
+        JE SKIP2
+        JA DEC2
+        INC _Y
+        MOV BOOL, 1
+        JMP SKIP2
+        DEC2:
+            DEC _Y
+            MOV BOOL, 1
+        SKIP2:
+        CMP BOOL, 1
+    JE LOOP_L
+    RET
+DRAWLINE ENDP
 
+; TO DRAW A HPRIZONTAL LINE OF LENGTH L FROM SOME COORDINATES
+DRAWHLINE PROC
+    MOV CX, _X
+    MOV T_X, CX
+    MOV CX, _Y
+    MOV T_Y, CX
+    LOOP_W:
+        MOV AH, 0CH ; 
+        MOV AL, 11 ; COLOUR
+        MOV CX, T_X ; CX IS X-AXIS
+        MOV DX, T_Y ; DX IS Y-AXIS
+        INT 10H ; INTERRUP FOR GRAPHICS
+        INC T_X
+        MOV CX, TMP_LEN
+        ADD CX, _X
+        CMP T_X, CX
+    JBE LOOP_W
+    RET
+DRAWHLINE ENDP
 
+; TO DRAW A VERTICAL LINE OF LENGTH L FROM SOME COORDINATES
+DRAWVLINE PROC
+    MOV CX, _X
+    MOV T_X, CX
+    MOV CX, _Y
+    MOV T_Y, CX
+    LOOP_H:
+        MOV AH, 0CH ; 
+        MOV AL, 11 ; COLOUR
+        MOV CX, T_X ; CX IS X-AXIS
+        MOV DX, T_Y ; DX IS Y-AXIS
+        INT 10H ; INTERRUP FOR GRAPHICS
+        INC T_Y
+        MOV CX, TMP_LEN
+        ADD CX, _Y
+        CMP T_Y, CX
+    JBE LOOP_H
+    RET
+DRAWVLINE ENDP
 
 EXIT:
 MOV AH, 4CH
