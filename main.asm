@@ -1,9 +1,6 @@
 .MODEL SMALL
 .STACK 100H
 .DATA
-    S1 DW 0
-    S2 DW 0
-
     TP DW 0
 
     TIME_TRACK DB 0
@@ -23,39 +20,47 @@
 
     COL BYTE 0
 
+    COLOR DB ?
+
+;<----- MACROS ----->
 ; DRAW BOX
-DRBX MACRO X, Y, L, H
+DRBX MACRO X, Y, L, H, C
     MOV _X, X
     MOV _Y, Y
     MOV TMP_LEN, L
     MOV TMP_HIG, H
+    MOV COLOR, C
     CALL DRAWBOX
 ENDM
 
 ; DRAW LINE
-DRLN MACRO X1, Y1, X2, Y2
+DRLN MACRO X1, Y1, X2, Y2, C
     MOV _X, X1
     MOV _Y, Y1
     MOV T_X, X2
     MOV T_Y, Y2
+    MOV COLOR, C
     CALL DRAWLINE
 ENDM
 
 ; DRAW HORIZONTAL LINE
-DRHLN MACRO X, Y, L
+DRHLN MACRO X, Y, L, C
     MOV _X, X
     MOV _Y, Y
     MOV TMP_LEN, L
+    MOV COLOR, C
     CALL DRAWHLINE
 ENDM
 
 ; DRAW VERTICAL LINE
-DRVLN MACRO X, Y, L
+DRVLN MACRO X, Y, L, C
     MOV _X, X
     MOV _Y, Y
     MOV TMP_LEN, L
+    MOV COLOR, C
     CALL DRAWVLINE
 ENDM
+;<----- END MACROS ----->
 
 .CODE
 MOV AX,@DATA
@@ -74,13 +79,29 @@ MAIN PROC
     MOV BH, 4h
     INT 10h
 
+    MOV BX, 0
+    LOOPER:
+        DRBX BX, 185, 50, 5, 1H
+        DRVLN BX, 185, 5, 4H
+        MOV CX, BX
+        ADD CX, 50
+        DRVLN CX, 185, 5, 4H
 
-    DRLN 50, 50, 50, 150
-    DRLN 0, 100, 100, 100
-    DRLN 0, 150, 100, 50
-    DRLN 0, 50, 100, 150
+        MOV AH, 1 ; INTRUPT FOR KEYBOARD INPUT
+        INT 16H
+        MOV AH, 0
+        INT 16H
 
-    DRBX 150, 50, 100, 50
+        CMP AH, 4DH ; SCAN CODE RIGHT
+        JNE SKIPER
+        INC BX
+        SKIPER:
+        CMP AH, 4BH ; SCAN CODE LEFT
+        JNE SKIPEE
+        DEC BX
+        SKIPEE:
+    JMP LOOPER
+
 
 ;    MOV BX, 0
 ;    FPS:
@@ -129,7 +150,7 @@ DRAWBOX PROC
         MOV T_X, CX
         LOOP_W:
             MOV AH, 0CH ; 
-            MOV AL, 1H ;COLOUR
+            MOV AL, COLOR ;COLOUR
             MOV CX, T_X ; CX IS X-AXIS
             MOV DX, T_Y ; DX IS Y-AXIS
             INT 10H ; INTERRUP FOR GRAPHICS
@@ -151,7 +172,7 @@ DRAWLINE PROC
     LOOP_L:
         MOV BOOL, 0
         MOV AH, 0CH ; 
-        MOV AL, 11 ; COLOUR
+        MOV AL, COLOR ; COLOUR
         MOV CX, _X ; CX IS X-AXIS
         MOV DX, _Y ; DX IS Y-AXIS
         INT 10H ; INTERRUP FOR GRAPHICS
@@ -190,7 +211,7 @@ DRAWHLINE PROC
     MOV T_Y, CX
     LOOP_W:
         MOV AH, 0CH ; 
-        MOV AL, 11 ; COLOUR
+        MOV AL, COLOR ; COLOUR
         MOV CX, T_X ; CX IS X-AXIS
         MOV DX, T_Y ; DX IS Y-AXIS
         INT 10H ; INTERRUP FOR GRAPHICS
@@ -210,7 +231,7 @@ DRAWVLINE PROC
     MOV T_Y, CX
     LOOP_H:
         MOV AH, 0CH ; 
-        MOV AL, 11 ; COLOUR
+        MOV AL, COLOR ; COLOUR
         MOV CX, T_X ; CX IS X-AXIS
         MOV DX, T_Y ; DX IS Y-AXIS
         INT 10H ; INTERRUP FOR GRAPHICS
