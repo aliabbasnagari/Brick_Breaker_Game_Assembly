@@ -23,6 +23,7 @@
     COLOR DB ?
 
 ;<----- MACROS ----->
+; X = X-Coordinate, Y = Y-Coordinate, L = length, H = Height, C = Color
 ; DRAW BOX
 DRBX MACRO X, Y, L, H, C
     MOV _X, X
@@ -69,7 +70,7 @@ MOV DS,AX
 MAIN PROC
     MOV AH,00H		;SET VIDEO MODE
     MOV AL,13H		;CHOOSE MODE 13
-    INT 10H ; GRAPHICS INTERRUPT
+    INT 10H         ; GRAPHICS INTERRUPT
 
     MOV AH, 06h 
     MOV AL, 0
@@ -141,6 +142,7 @@ MAIN PROC
 MAIN ENDP
 JMP EXIT
 
+; <----- Functions ----->
 ; TO DRAW A BOX
 DRAWBOX PROC
     MOV CX, _Y
@@ -149,11 +151,11 @@ DRAWBOX PROC
         MOV CX, _X
         MOV T_X, CX
         LOOP_W:
-            MOV AH, 0CH ; 
-            MOV AL, COLOR ;COLOUR
-            MOV CX, T_X ; CX IS X-AXIS
-            MOV DX, T_Y ; DX IS Y-AXIS
-            INT 10H ; INTERRUP FOR GRAPHICS
+            MOV AH, 0CH 
+            MOV AL, COLOR   ;COLOUR
+            MOV CX, T_X     ; CX IS X-AXIS
+            MOV DX, T_Y     ; DX IS Y-AXIS
+            INT 10H         ; INTERRUP FOR GRAPHICS
             INC T_X
             MOV CX, TMP_LEN
             ADD CX, _X
@@ -171,11 +173,11 @@ DRAWBOX ENDP
 DRAWLINE PROC
     LOOP_L:
         MOV BOOL, 0
-        MOV AH, 0CH ; 
-        MOV AL, COLOR ; COLOUR
-        MOV CX, _X ; CX IS X-AXIS
-        MOV DX, _Y ; DX IS Y-AXIS
-        INT 10H ; INTERRUP FOR GRAPHICS
+        MOV AH, 0CH
+        MOV AL, COLOR   ; COLOUR
+        MOV CX, _X      ; CX IS X-AXIS
+        MOV DX, _Y      ; DX IS Y-AXIS
+        INT 10H         ; INTERRUP FOR GRAPHICS
         MOV CX, T_X
         CMP _X, CX
         JE SKIP1
@@ -210,11 +212,11 @@ DRAWHLINE PROC
     MOV CX, _Y
     MOV T_Y, CX
     LOOP_W:
-        MOV AH, 0CH ; 
-        MOV AL, COLOR ; COLOUR
-        MOV CX, T_X ; CX IS X-AXIS
-        MOV DX, T_Y ; DX IS Y-AXIS
-        INT 10H ; INTERRUP FOR GRAPHICS
+        MOV AH, 0CH 
+        MOV AL, COLOR   ; COLOUR
+        MOV CX, T_X     ; CX IS X-AXIS
+        MOV DX, T_Y     ; DX IS Y-AXIS
+        INT 10H         ; INTERRUP FOR GRAPHICS
         INC T_X
         MOV CX, TMP_LEN
         ADD CX, _X
@@ -230,11 +232,11 @@ DRAWVLINE PROC
     MOV CX, _Y
     MOV T_Y, CX
     LOOP_H:
-        MOV AH, 0CH ; 
-        MOV AL, COLOR ; COLOUR
-        MOV CX, T_X ; CX IS X-AXIS
-        MOV DX, T_Y ; DX IS Y-AXIS
-        INT 10H ; INTERRUP FOR GRAPHICS
+        MOV AH, 0CH
+        MOV AL, COLOR   ; COLOUR
+        MOV CX, T_X     ; CX IS X-AXIS
+        MOV DX, T_Y     ; DX IS Y-AXIS
+        INT 10H         ; INTERRUP FOR GRAPHICS
         INC T_Y
         MOV CX, TMP_LEN
         ADD CX, _Y
@@ -242,6 +244,7 @@ DRAWVLINE PROC
     JBE LOOP_H
     RET
 DRAWVLINE ENDP
+; <----- End Functions ----->
 
 EXIT:
 MOV AH, 4CH
