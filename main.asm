@@ -87,6 +87,8 @@ MAIN PROC
         ADD CX, 50
         DRVLN CX, 185, 5, 4H
 
+	DRBX 0, 0, 50, 50, 12 ; brick 99
+
         MOV AH, 1 ; INTRUPT FOR KEYBOARD INPUT
         INT 16H
         MOV AH, 0
