@@ -31,8 +31,13 @@
     C_Y DW 0
     X_DIR DB 0
     Y_DIR DB 0
-    B_SPEED DW 10
+    B_SPEED DW 3
     TP DW 0
+
+    ; <--- SLIDER DATA --->
+    S_POS DW 10
+    S_LEN DW 50
+    S_SPEED DW 2
 
     ; <--- FPS DATA --->
     TIME_TRACK DB 0
@@ -141,13 +146,18 @@ MAIN PROC
 
     DRBX 10, 10, 300, 180, LGRAY
 
+    DRBX 10, 10, 50, 5, CAYAN
+    DRBX 60, 10, 50, 5, LBLUE
+    DRBX 110, 10, 50, 5, YELLOW
+    DRBX 160, 10, 50, 5, GREEN
+    DRBX 210, 10, 50, 5, MAGINTA
+    DRBX 260, 10, 50, 5, WHITE
+
     MOV TIME_TRACK, 0
     MOV C_X, 10
     MOV C_Y, 10
-    MOV BX, 0
+    MOV S_POS, 10
     LOOPER:
-
-        PUSH BX
         MOV AH, 2CH
         INT 21H
         CMP TIME_TRACK, DL
@@ -159,27 +169,40 @@ MAIN PROC
         MOV DX, C_Y
         DRCR BX, DX, BLUE
 
-        POP BX
-        DRBX BX, 185, 50, 5, 1H
-        DRVLN BX, 185, 5, 4H
-        MOV CX, BX
-        ADD CX, 50
-        DRVLN CX, 185, 5, 4H
+        MOV BX, S_POS
+        DRBX BX, 185, 50, 5, GREEN
 
         MOV AH, 1 ; INTRUPT FOR KEYBOARD INPUT
         INT 16H
         JZ LOOPER
+
+        MOV BX, S_POS
         MOV AH, 0
         INT 16H
+        .IF AH == 4DH ; SCAN CODE RIGHT
+            ADD BX, 40
+            .IF BX < X_MAX
+                MOV BX, S_POS
+                MOV CX, S_SPEED
+                DEC CX
+                DRBX BX, 185, CX, 5, RED
 
-        CMP AH, 4DH ; SCAN CODE RIGHT
-        JNE SKIPER
-        INC BX
-        SKIPER:
-        CMP AH, 4BH ; SCAN CODE LEFT
-        JNE SKIPEE
-        DEC BX
-        SKIPEE:
+                MOV BX, S_SPEED
+                ADD S_POS, BX
+            .ENDIF
+        .ELSEIF AH == 4BH ; SCAN CODE LEFT
+            .IF BX > XY_MIN
+                MOV BX, S_POS
+                ADD BX, S_LEN
+                MOV CX, S_SPEED
+                DEC CX
+                DEC BX
+                DRBX BX, 185, CX, 5, RED
+
+                MOV BX, S_SPEED
+                SUB S_POS, BX
+            .ENDIF
+        .ENDIF
     JMP LOOPER
 
 MAIN ENDP
@@ -191,58 +214,60 @@ MOVE_BALL PROC
     MOV BX, C_X
     MOV DX, C_Y
     DRCR BX, DX, BLUE
-    TIMER:
-    MOV AH, 2CH
-    INT 21H
-    CMP TIME_TRACK, DL
-    JE TIMER
-    MOV TIME_TRACK, DL
 
     MOV BX, C_X
     MOV DX, C_Y
     DRCR BX, DX, LGRAY
-    XX:
-    CMP X_DIR, 0
-    JNE X_REV
+    
+    .IF X_DIR == 0
         MOV BX, C_X
-        CMP BX, X_MAX
-        JAE CNG_X1
+        .IF BX < X_MAX
             MOV BX, B_SPEED
             ADD C_X, BX
-            JMP YY
-        CNG_X1:
-        MOV X_DIR, 1
-    X_REV:
+        .ELSE
+            MOV X_DIR, 1
+        .ENDIF
+    .ELSE
         MOV BX, C_X
-        CMP BX, XY_MIN
-        JBE CNG_X2
+        .IF BX > XY_MIN
             MOV BX, B_SPEED
             SUB C_X, BX
-            JMP YY
-        CNG_X2:
-        MOV X_DIR, 0
+        .ELSE
+            MOV X_DIR, 0
+        .ENDIF
+    .ENDIF
 
-    YY:
-    CMP Y_DIR, 0
-    JNE Y_REV
+    .IF Y_DIR == 0
         MOV BX, C_Y
-        CMP BX, Y_MAX
-        JAE CNG_Y1
+        .IF BX >= Y_MAX
+            MOV Y_DIR, 1
+        .ELSEIF BX >= 175
+            MOV BX, S_POS
+            .IF C_X >= BX
+                ADD BX, 50
+                .IF C_X < BX
+                    MOV Y_DIR, 1
+                .ELSE
+                    JMP MOVEL
+                .ENDIF
+            .ELSE
+                JMP MOVEL
+            .ENDIF
+        .ELSE
+            MOVEL:
             MOV BX, B_SPEED
             ADD C_Y, BX
-            JMP ENDL
-        CNG_Y1:
-        MOV Y_DIR, 1
-    Y_REV:
-        MOV BX, C_Y
-        CMP BX, XY_MIN
-        JBE CNG_Y2
-            MOV BX, B_SPEED
-            SUB C_Y, BX
-            JMP ENDL
-        CNG_Y2:
+            RET
+        .ENDIF
+    .ENDIF
+
+     MOV BX, C_Y
+    .IF BX > XY_MIN
+        MOV BX, B_SPEED
+        SUB C_Y, BX
+    .ELSE
         MOV Y_DIR, 0
-    ENDL:
+    .ENDIF
     RET
 MOVE_BALL ENDP
 ; TO DRAW A BOX
