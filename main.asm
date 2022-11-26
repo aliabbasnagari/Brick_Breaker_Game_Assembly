@@ -1,26 +1,60 @@
 .MODEL SMALL
 .STACK 100H
 .DATA
+
+    ; <--- Colors --->
+    BLACK    EQU 0
+    BLUE     EQU 1
+    GREEN    EQU 2
+    CAYAN    EQU 3
+    RED      EQU 4
+    MAGINTA  EQU 5
+    BROWN    EQU 6
+    LGRAY    EQU 7
+    DGRAY    EQU 8
+    LBLUE    EQU 9
+    LGREEN   EQU 10
+    LCAYAN   EQU 11
+    LRED     EQU 12
+    LMAGINTA EQU 13
+    YELLOW   EQU 14
+    WHITE    EQU 15
+    ; <--- END COLORS --->
+
+    ; <--- OUTER BORDER --->
+    XY_MIN DW 10
+    X_MAX DW 300
+    Y_MAX DW 180
+    
+    ; <--- BALL DATA --->
+    C_X DW 0
+    C_Y DW 0
+    X_DIR DB 0
+    Y_DIR DB 0
+    B_SPEED DW 10
     TP DW 0
 
+    ; <--- FPS DATA --->
     TIME_TRACK DB 0
 
+    ; <--- SHAPES DATA --->
     TMP_LEN DW 0
     TMP_HIG DW 0
-    
+
     TMP_X DW 0
     TMP_Y DW 0
-
+    
     T_X DW 0
     T_Y DW 0
+
     _X DW 0
     _Y DW 0
 
-    BOOL DB 0
-
-    COL BYTE 0
-
     COLOR DB ?
+
+    ; <--- HELPING DATA --->
+    BOOL DB 0
+    COL BYTE 0
 
 ;<----- MACROS ----->
 ; X = X-Coordinate, Y = Y-Coordinate, L = length, H = Height, C = Color
@@ -61,6 +95,31 @@ DRVLN MACRO X, Y, L, C
     MOV COLOR, C
     CALL DRAWVLINE
 ENDM
+
+; DRAW CIRCLE
+DRCR MACRO X, Y, C
+    MOV C_X, X
+    MOV C_Y, Y
+
+    MOV AX, C_X
+    MOV CX, C_Y
+    ADD AX, 4
+    DRBX AX, CX, 1, 9, C
+    MOV AX, C_X
+    ADD AX, 2
+    MOV CX, C_Y
+    ADD CX, 1
+    DRBX AX, CX, 5, 7, C
+    MOV AX, C_X
+    ADD AX, 1
+    MOV CX, C_Y
+    ADD CX, 2
+    DRBX AX, CX, 7, 5, C
+    MOV AX, C_X
+    MOV CX, C_Y
+    ADD CX, 4
+    DRBX AX, CX, 9, 1, C
+ENDM
 ;<----- END MACROS ----->
 
 .CODE
@@ -72,26 +131,44 @@ MAIN PROC
     MOV AL,13H		;CHOOSE MODE 13
     INT 10H         ; GRAPHICS INTERRUPT
 
-    MOV AH, 06h 
+    MOV AH, 06H
     MOV AL, 0
     MOV CX, 0
     MOV DH, 80
-    MOV DL, 80	 
-    MOV BH, 4h
+    MOV DL, 80
+    MOV BH, BROWN
     INT 10h
 
+    DRBX 10, 10, 300, 180, LGRAY
+
+    MOV TIME_TRACK, 0
+    MOV C_X, 10
+    MOV C_Y, 10
     MOV BX, 0
     LOOPER:
+
+        PUSH BX
+        MOV AH, 2CH
+        INT 21H
+        CMP TIME_TRACK, DL
+        JE SKIP_BALL
+        MOV TIME_TRACK, DL
+        CALL MOVE_BALL
+        SKIP_BALL:
+        MOV BX, C_X
+        MOV DX, C_Y
+        DRCR BX, DX, BLUE
+
+        POP BX
         DRBX BX, 185, 50, 5, 1H
         DRVLN BX, 185, 5, 4H
         MOV CX, BX
         ADD CX, 50
         DRVLN CX, 185, 5, 4H
 
-	DRBX 0, 0, 50, 50, 12 ; brick 99
-
         MOV AH, 1 ; INTRUPT FOR KEYBOARD INPUT
         INT 16H
+        JZ LOOPER
         MOV AH, 0
         INT 16H
 
@@ -105,46 +182,69 @@ MAIN PROC
         SKIPEE:
     JMP LOOPER
 
-
-;    MOV BX, 0
-;    FPS:
-;        MOV AH, 2CH
-;        INT 21H
-;        CMP DH, TIME_TRACK
-;        JE FPS
-;    
-;    MOV AH, 06h 
-;    MOV AL, 0
-;    MOV CX, 0
-;    MOV DH, 80
-;    MOV DL, 80	 
-;    MOV BH, 4h
-;    INT 10h
-;    
-;    DRBX BX, 150, 50, 5
-;
-;    CMP COL, 0
-;    JNE LEF
-;        INC BX
-;        JMP RIG
-;    LEF:
-;        DEC BX
-;    RIG:
-;        CMP BX, 100
-;        JNE SF1
-;            MOV COL, 1
-;        SF1:
-;        CMP BX, 0
-;        JNE SF2
-;            MOV COL, 0
-;        SF2:  
-;
-;    MOV TIME_TRACK, DH
-;    JMP FPS
 MAIN ENDP
 JMP EXIT
 
 ; <----- Functions ----->
+
+MOVE_BALL PROC
+    MOV BX, C_X
+    MOV DX, C_Y
+    DRCR BX, DX, BLUE
+    TIMER:
+    MOV AH, 2CH
+    INT 21H
+    CMP TIME_TRACK, DL
+    JE TIMER
+    MOV TIME_TRACK, DL
+
+    MOV BX, C_X
+    MOV DX, C_Y
+    DRCR BX, DX, LGRAY
+    XX:
+    CMP X_DIR, 0
+    JNE X_REV
+        MOV BX, C_X
+        CMP BX, X_MAX
+        JAE CNG_X1
+            MOV BX, B_SPEED
+            ADD C_X, BX
+            JMP YY
+        CNG_X1:
+        MOV X_DIR, 1
+    X_REV:
+        MOV BX, C_X
+        CMP BX, XY_MIN
+        JBE CNG_X2
+            MOV BX, B_SPEED
+            SUB C_X, BX
+            JMP YY
+        CNG_X2:
+        MOV X_DIR, 0
+
+    YY:
+    CMP Y_DIR, 0
+    JNE Y_REV
+        MOV BX, C_Y
+        CMP BX, Y_MAX
+        JAE CNG_Y1
+            MOV BX, B_SPEED
+            ADD C_Y, BX
+            JMP ENDL
+        CNG_Y1:
+        MOV Y_DIR, 1
+    Y_REV:
+        MOV BX, C_Y
+        CMP BX, XY_MIN
+        JBE CNG_Y2
+            MOV BX, B_SPEED
+            SUB C_Y, BX
+            JMP ENDL
+        CNG_Y2:
+        MOV Y_DIR, 0
+    ENDL:
+    RET
+MOVE_BALL ENDP
 ; TO DRAW A BOX
 DRAWBOX PROC
     MOV CX, _Y
