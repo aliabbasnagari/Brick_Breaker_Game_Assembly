@@ -125,6 +125,22 @@ DRCR MACRO X, Y, C
     ADD CX, 4
     DRBX AX, CX, 9, 1, C
 ENDM
+
+; DRAW TRAINGLE
+DRTR MACRO X, Y, H, C
+    MOV _X, X
+    MOV _Y, Y
+    MOV TMP_LEN, 0
+    MOV TMP_HIG, H
+    MOV AX, TMP_HIG
+    MOV BL, 2
+    DIV BL
+    MOV AH, 0
+    ADD _X, AX
+    MOV COLOR, C
+    CALL DRAWTRIANGLE
+ENDM
+
 ;<----- END MACROS ----->
 
 .CODE
@@ -145,6 +161,15 @@ MAIN PROC
     INT 10h
 
     DRBX 10, 10, 300, 180, LGRAY
+    DRBX 10, 191, 300, 7, LGRAY
+    MOV BX, 10
+    LOOP_SPIKE:
+    PUSH BX
+        DRTR BX, 192, 8, DGRAY
+        POP BX
+        ADD BX, 10
+        CMP BX, 310
+        JB LOOP_SPIKE
 
     DRBX 10, 10, 50, 5, CAYAN
     DRBX 60, 10, 50, 5, LBLUE
@@ -152,6 +177,7 @@ MAIN PROC
     DRBX 160, 10, 50, 5, GREEN
     DRBX 210, 10, 50, 5, MAGINTA
     DRBX 260, 10, 50, 5, WHITE
+
 
     MOV TIME_TRACK, 0
     MOV C_X, 10
@@ -185,7 +211,7 @@ MAIN PROC
                 MOV BX, S_POS
                 MOV CX, S_SPEED
                 DEC CX
-                DRBX BX, 185, CX, 5, RED
+                DRBX BX, 185, CX, 5, LGRAY
 
                 MOV BX, S_SPEED
                 ADD S_POS, BX
@@ -197,7 +223,7 @@ MAIN PROC
                 MOV CX, S_SPEED
                 DEC CX
                 DEC BX
-                DRBX BX, 185, CX, 5, RED
+                DRBX BX, 185, CX, 5, LGRAY
 
                 MOV BX, S_SPEED
                 SUB S_POS, BX
@@ -371,6 +397,40 @@ DRAWVLINE PROC
     JBE LOOP_H
     RET
 DRAWVLINE ENDP
+
+; TO DRAW A TRIANGLE
+DRAWTRIANGLE PROC
+    MOV BOOL, 0
+    MOV CX, _Y
+    MOV T_Y, CX
+    LOOP_H:
+        MOV CX, _X
+        MOV T_X, CX
+        LOOP_W:
+            MOV AH, 0CH 
+            MOV AL, COLOR   ;COLOUR
+            MOV CX, T_X     ; CX IS X-AXIS
+            MOV DX, T_Y     ; DX IS Y-AXIS
+            INT 10H         ; INTERRUP FOR GRAPHICS
+            INC T_X
+            MOV CX, TMP_LEN
+            ADD CX, _X
+            CMP T_X, CX
+        JBE LOOP_W
+        .IF BOOL == 0
+            ADD TMP_LEN, 2
+            DEC _X
+            MOV BOOL, 1
+        .ELSE
+            MOV BOOL, 0
+        .ENDIF
+        INC T_Y
+        MOV CX, TMP_HIG
+        ADD CX, _Y
+        CMP T_Y, CX
+    JBE LOOP_H
+    RET
+DRAWTRIANGLE ENDP
 ; <----- End Functions ----->
 
 EXIT:
