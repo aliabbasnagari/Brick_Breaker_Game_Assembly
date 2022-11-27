@@ -31,8 +31,16 @@
     C_Y DW 0
     X_DIR DB 0
     Y_DIR DB 0
-    B_SPEED DW 3
+    B_SPEED DW 2
     TP DW 0
+
+    ; <--- BLOCKS DATA --->
+    NO_BLOCKS DW 0
+    X_CORDS DW 10, 60, 110, 160, 210, 260, 10, 60, 110, 160, 210, 260, 10, 60, 110, 160, 210, 260
+    Y_CORDS DW 10, 10,  10,  10,  10,  10, 15, 15,  15,  15,  15,  15, 20, 20,  20,  20,  20,  20
+    B_COLOR DB  1,  2,   3,   4,   5,   6,  7,  8,   9,  10,  11,  12, 13, 14,  15,   1,   2,   3
+    B_POINT DB  1,  1,   1,   1,   1,   1
+    B_HITS  DB  1,  1,   1,   1,   1,   1
 
     ; <--- SLIDER DATA --->
     S_POS DW 10
@@ -71,6 +79,16 @@ DRBX MACRO X, Y, L, H, C
     MOV TMP_HIG, H
     MOV COLOR, C
     CALL DRAWBOX
+ENDM
+
+; DRAW HOLLOW BOX
+DRHBX MACRO X, Y, L, H, C
+    MOV _X, X
+    MOV _Y, Y
+    MOV TMP_LEN, L
+    MOV TMP_HIG, H
+    MOV COLOR, C
+    CALL DRAWHBOX
 ENDM
 
 ; DRAW LINE
@@ -141,6 +159,31 @@ DRTR MACRO X, Y, H, C
     CALL DRAWTRIANGLE
 ENDM
 
+; DRAW BLOCK
+DRBLK MACRO X, Y, L, H, C
+    PUSH X
+    PUSH Y
+    MOV _X, X
+    MOV _Y, Y
+    INC _X
+    INC _Y
+    MOV TMP_LEN, L
+    MOV TMP_HIG, H
+    SUB TMP_LEN, 2
+    SUB TMP_HIG, 2
+    MOV COLOR, C
+    CALL DRAWBOX
+    POP Y
+    POP X
+    MOV _X, X
+    MOV _Y, Y
+    MOV TMP_LEN, L
+    MOV TMP_HIG, H
+    MOV COLOR, BLACK
+    CALL DRAWHBOX
+    
+ENDM
+
 ;<----- END MACROS ----->
 
 .CODE
@@ -171,25 +214,25 @@ MAIN PROC
         CMP BX, 310
         JB LOOP_SPIKE
 
-    DRBX 10, 10, 50, 5, CAYAN
-    DRBX 60, 10, 50, 5, LBLUE
-    DRBX 110, 10, 50, 5, YELLOW
-    DRBX 160, 10, 50, 5, GREEN
-    DRBX 210, 10, 50, 5, MAGINTA
-    DRBX 260, 10, 50, 5, WHITE
+
+    CALL DRAWBLOCKS
 
 
     MOV TIME_TRACK, 0
-    MOV C_X, 10
-    MOV C_Y, 10
+    MOV C_X, 100
+    MOV C_Y, 100
     MOV S_POS, 10
     LOOPER:
+        MOV BX, C_X
+        MOV DX, C_Y
+        DRCR BX, DX, BLUE
+
         MOV AH, 2CH
         INT 21H
         CMP TIME_TRACK, DL
         JE SKIP_BALL
-        MOV TIME_TRACK, DL
-        CALL MOVE_BALL
+            MOV TIME_TRACK, DL
+            CALL MOVE_BALL
         SKIP_BALL:
         MOV BX, C_X
         MOV DX, C_Y
@@ -236,10 +279,9 @@ JMP EXIT
 
 ; <----- Functions ----->
 
+; TO MOVE THE BALL IN THE PLAY AREA
 MOVE_BALL PROC
-    MOV BX, C_X
-    MOV DX, C_Y
-    DRCR BX, DX, BLUE
+    CALL CHECKCOLLISION
 
     MOV BX, C_X
     MOV DX, C_Y
@@ -296,6 +338,7 @@ MOVE_BALL PROC
     .ENDIF
     RET
 MOVE_BALL ENDP
+
 ; TO DRAW A BOX
 DRAWBOX PROC
     MOV CX, _Y
@@ -321,6 +364,78 @@ DRAWBOX PROC
     JBE LOOP_H
     RET
 DRAWBOX ENDP
+
+; TO DRAW A HOLLOW BOX
+DRAWHBOX PROC
+MOV CX, _X
+    MOV T_X, CX
+    MOV CX, _Y
+    MOV T_Y, CX
+    LOOP_W:
+        MOV AH, 0CH ; 
+        MOV AL, COLOR ;COLOUR
+        MOV CX, T_X ; INCREMENTS X AXIS ; CX IS X-AXIS
+        MOV DX, T_Y ; DX IS Y-AXIS
+        INT 10H ; INTERRUP FOR GRAPHICS
+        INC T_X
+        MOV CX, TMP_LEN
+        ADD CX, _X
+        CMP T_X, CX
+    JBE LOOP_W
+
+    MOV CX, _X
+    MOV T_X, CX
+    MOV CX, _Y
+    MOV T_Y, CX
+    LOOP_X:
+        MOV AH, 0CH ; 
+        MOV AL, COLOR ;COLOUR
+        MOV CX, T_X ; INCREMENTS X AXIS ; CX IS X-AXIS
+        MOV DX, T_Y ; DX IS Y-AXIS
+        INT 10H ; INTERRUP FOR GRAPHICS
+        INC T_Y
+        MOV CX, TMP_HIG
+        ADD CX, _Y
+        CMP T_Y, CX
+    JBE LOOP_X
+
+
+    MOV CX, _X
+    MOV T_X, CX
+    MOV CX, _Y
+    ADD CX, TMP_HIG
+    MOV T_Y, CX
+    LOOP_Y:
+        MOV AH, 0CH ; 
+        MOV AL, COLOR ;COLOUR
+        MOV CX, T_X ; INCREMENTS X AXIS ; CX IS X-AXIS
+        MOV DX, T_Y ; DX IS Y-AXIS
+        INT 10H ; INTERRUP FOR GRAPHICS
+        INC T_X
+        MOV CX, TMP_LEN
+        ADD CX, _X
+        CMP T_X, CX
+    JBE LOOP_Y
+
+    MOV CX, _X
+    ADD CX, TMP_LEN
+    MOV T_X, CX
+    MOV CX, _Y
+    MOV T_Y, CX
+    LOOP_Z:
+        MOV AH, 0CH ; 
+        MOV AL, COLOR ;COLOUR
+        MOV CX, T_X ; INCREMENTS X AXIS ; CX IS X-AXIS
+        MOV DX, T_Y ; DX IS Y-AXIS
+        INT 10H ; INTERRUP FOR GRAPHICS
+        INC T_Y
+        MOV CX, TMP_HIG
+        ADD CX, _Y
+        CMP T_Y, CX
+    JBE LOOP_Z
+
+    RET
+DRAWHBOX ENDP
 
 ; TO DRAW A LINE BETWEEN COORDINATES
 DRAWLINE PROC
@@ -431,6 +546,52 @@ DRAWTRIANGLE PROC
     JBE LOOP_H
     RET
 DRAWTRIANGLE ENDP
+
+; DRAW BLOCKS
+DRAWBLOCKS PROC
+    MOV SI, 0
+    MOV DI, 0
+    MOV NO_BLOCKS, 0
+    DRBX 10, 10, 300, 25, LGRAY
+    LOOP_B:
+        MOV AX, [X_CORDS + SI]
+        MOV BX, [Y_CORDS + SI]
+        MOV CL, [B_COLOR + DI]
+        .IF AX != 0
+            .IF BX != 0
+                DRBLK AX, BX, 50, 5, CL
+            .ENDIF
+        .ENDIF
+        ADD SI, 2
+        INC DI
+        INC NO_BLOCKS
+        CMP NO_BLOCKS, 18
+        JB LOOP_B
+    RET
+DRAWBLOCKS ENDP
+
+CHECKCOLLISION PROC
+    MOV CX, C_X
+    MOV DX, C_Y
+    .IF Y_DIR == 1
+        MOV SI, 0
+        .WHILE SI < SIZEOF Y_CORDS
+            MOV AX, [Y_CORDS + SI]
+            MOV BX, [X_CORDS + SI]
+            ADD AX, 7
+            ADD BX, 50
+            .IF DX <= AX && CX <= BX
+                MOV AX, 0
+                MOV Y_DIR, 0
+                MOV [Y_CORDS + SI], AX
+                CALL DRAWBLOCKS
+                RET
+            .ENDIF
+            ADD SI, 2
+        .ENDW
+    .ENDIF
+    RET
+CHECKCOLLISION ENDP
 ; <----- End Functions ----->
 
 EXIT:
