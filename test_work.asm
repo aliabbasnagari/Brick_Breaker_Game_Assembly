@@ -2,6 +2,20 @@
 .STACK 100H
 .DATA
 
+    STRT BYTE "START GAME",'$'
+    INSTRT BYTE "INSTRUCTIONS",'$'
+    HSCR BYTE "HIGH SCORE",'$'
+    EXT BYTE "EXIT",'$'
+    INSTRUCTIONS BYTE "Welcome to break breaker game. You have ",'$'
+    INSTRUCTIONS1 BYTE "to break all the breaks without the ball",'$'
+    INSTRUCTIONS2 BYTE "hitting spikes.You have 3 lives.        ",'$'
+    
+    INSTRUCTIONS3 BYTE "The game difficulty increases with each ",'$'
+    INSTRUCTIONS4 BYTE "level.Use navigation KEYS to move the  ",'$'
+    INSTRUCTIONS5 BYTE "board.press space to pause the game.    ",'$'
+
+    CUR WORD 25
+
     ; <--- Colors --->
     BLACK    EQU 0
     BLUE     EQU 1
@@ -125,6 +139,15 @@ DRCR MACRO X, Y, C
     ADD CX, 4
     DRBX AX, CX, 9, 1, C
 ENDM
+
+MOVECURSOR MACRO X,Y
+MOV AH,02H
+MOV BX,0
+MOV DH, X ;Row Number
+MOV DL, Y ;Column Number
+INT 10H
+
+ENDM
 ;<----- END MACROS ----->
 
 .CODE
@@ -135,7 +158,7 @@ MAIN PROC
     MOV AH,00H		;SET VIDEO MODE
     MOV AL,13H		;CHOOSE MODE 13
     INT 10H         ; GRAPHICS INTERRUPT
-
+COMMENT!
     MOV AH, 06H
     MOV AL, 0
     MOV CX, 0
@@ -143,7 +166,199 @@ MAIN PROC
     MOV DL, 80
     MOV BH, BROWN
     INT 10h
+    !
+    STRTTT:
 
+    MOV AH,06H
+    XOR AL,AL
+    XOR CX,CX
+    MOV DX,184FH
+    MOV BH,4EH
+    INT 10H
+
+
+    MENUU:
+
+    MOV AX,CUR
+    DRBX 105,AX,105,15,0       ;1ST-25,2ND-50
+
+    
+    MOVECURSOR 80,150
+    lea dx,STRT
+    mov ah,09h
+    int 21h
+
+
+    MOVECURSOR 83,150
+    lea dx,INSTRT
+    mov ah,09h
+    int 21h
+
+    MOVECURSOR 86,150
+    lea dx,HSCR
+    mov ah,09h
+    int 21h
+
+    MOVECURSOR 89,150
+    lea dx,EXT
+    mov ah,09h
+    int 21h
+    
+    mov ah,01h
+	int 16h
+    
+    JNZ KEYPRESSED
+
+    JMP MENUU
+
+
+    KEYPRESSED:
+
+    MOV AH,06H
+    XOR AL,AL
+    XOR CX,CX
+    MOV DX,184FH
+    MOV BH,47
+    INT 10H
+    
+
+
+    MOV AH,00H
+    INT 16H
+
+    CMP AH,48h
+    JE UPP
+    CMP AH,50h
+    JE DOWNN
+
+    CMP AL,13
+    JE ENTERR
+
+    JMP MENUU
+
+    UPP:
+
+    CMP CUR,25
+    JE LAST
+    MOV AX,CUR
+    SUB AX,25
+    MOV CUR,AX
+    JMP MENUU
+
+    LAST:
+    MOV CUR,100
+    JMP MENUU
+
+    DOWNN:
+
+    CMP CUR,100
+    JE FIRST
+    MOV AX,CUR
+    ADD AX,25
+    MOV CUR,AX
+    JMP MENUU
+
+    FIRST:
+    MOV CUR,25
+    JMP MENUU
+
+
+    ENTERR:
+    CMP CUR,25
+    JE STARTGAME
+    CMP CUR,50
+    JE INSTRUCTIONSS
+
+    CMP CUR,100
+    JE GAMEEXIT
+
+
+   
+    INSTRUCTIONSS:
+
+    MOVECURSOR 0,0
+    MOV AH,06H
+    XOR AL,AL
+    XOR CX,CX
+    MOV DX,184FH
+    MOV BH,47
+    INT 10H
+
+    lea dx,INSTRUCTIONS
+    mov ah,09h
+    int 21h
+
+    MOV AH,2       
+    MOV DL,10    
+    INT 21H
+    MOV AH,2       
+    MOV DL,10    
+    INT 21H
+
+    lea dx,INSTRUCTIONS1
+    mov ah,09h
+    int 21h
+
+    MOV AH,2       
+    MOV DL,10    
+    INT 21H
+
+    lea dx,INSTRUCTIONS2
+    mov ah,09h
+    int 21h
+
+    MOV AH,2       
+    MOV DL,10    
+    INT 21H
+    MOV AH,2       
+    MOV DL,10    
+    INT 21H
+    lea dx,INSTRUCTIONS3
+    mov ah,09h
+    int 21h
+
+    MOV AH,2       
+    MOV DL,10    
+    INT 21H
+    MOV AH,2       
+    MOV DL,10    
+    INT 21H
+
+    lea dx,INSTRUCTIONS4
+    mov ah,09h
+    int 21h
+
+    MOV AH,2       
+    MOV DL,10    
+    INT 21H
+    MOV AH,2       
+    MOV DL,10    
+    INT 21H
+    
+    lea dx,INSTRUCTIONS5
+    mov ah,09h
+    int 21h
+
+    MOV AH,2       
+    MOV DL,10    
+    INT 21H
+    MOV AH,2       
+    MOV DL,10    
+    INT 21H
+    
+
+    mov ah,01h
+	int 16h
+
+    MOV AH,00H
+    INT 16H
+
+    CMP AL,08
+    JE STRTTT
+    JNE INSTRUCTIONSS
+
+
+    STARTGAME:
     DRBX 10, 10, 300, 180, LGRAY
 
     DRBX 10, 10, 50, 5, CAYAN
@@ -152,6 +367,7 @@ MAIN PROC
     DRBX 160, 10, 50, 5, GREEN
     DRBX 210, 10, 50, 5, MAGINTA
     DRBX 260, 10, 50, 5, WHITE
+
 
     MOV TIME_TRACK, 0
     MOV C_X, 10
@@ -372,6 +588,12 @@ DRAWVLINE PROC
     RET
 DRAWVLINE ENDP
 ; <----- End Functions ----->
+ GAMEEXIT:
+
+    MOV AH,00H		;SET VIDEO MODE
+    MOV AL,03H		;CHOOSE MODE 13
+    INT 10H
+
 
 EXIT:
 MOV AH, 4CH
