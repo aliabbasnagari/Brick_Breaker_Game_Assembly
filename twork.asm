@@ -169,14 +169,6 @@ COMMENT!
     !
     STRTTT:
 
-    MOV AH,06H
-    XOR AL,AL
-    XOR CX,CX
-    MOV DX,184FH
-    MOV BH,4EH
-    INT 10H
-
-
     MENUU:
 
     MOV AX,CUR

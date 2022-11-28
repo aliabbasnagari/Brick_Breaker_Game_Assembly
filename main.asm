@@ -22,7 +22,21 @@
     ; <--- END COLORS --->
 
     ; <--- MESSAGES --->
-    MSG_START DB "PRESS SPACEBAR TO LAUNCH", '$' 
+    MSG_LAUNCH DB "PRESS SPACEBAR TO LAUNCH", '$'
+    MSG_START BYTE " START GAME",'$'
+    MSG_INST BYTE "INSTRUCTIONS",'$'
+    MSG_HSCORE BYTE " HIGH SCORE",'$'
+    MSG_EXIT BYTE "    EXIT",'$'
+
+    INSTRUCTIONS BYTE "Welcome to Brick Breaker game.",'$'
+    INSTRUCTION1 BYTE "You have to break all the Bricks",'$'
+    INSTRUCTION2 BYTE "without the ball hitting spikes.",'$'
+    INSTRUCTION3 BYTE "You have 3 lives.",'$'
+    INSTRUCTION4 BYTE "The game difficulty increases with", '$'
+    INSTRUCTION5 BYTE "each level. Use navigation KEYS to",'$'
+    INSTRUCTION6 BYTE "move the board. press space to PLAY",'$'
+    INSTRUCTION7 BYTE " or pause the game.", '$'
+    INSTRUCTION8 BYTE "Have FUN ", 3, '$'
 
     ; <--- OUTER BORDER --->
     X_MIN DW 50
@@ -87,7 +101,9 @@
     PLAY DB 0
     ; <--- HELPING DATA --->
     BOOL DB 0
+    IS_MENU DB 1
     COL BYTE 0
+    CURR_OPT WORD 25
 
 ;<----- MACROS ----->
 ; X = X-Coordinate, Y = Y-Coordinate, L = length, H = Height, C = Color
@@ -208,17 +224,184 @@ DRBLK MACRO X, Y, L, H, C
     
 ENDM
 
+; MOVE CURR_OPTSOR
+MVCR MACRO X, Y
+MOV AH, 02H
+MOV BX, 0
+MOV DL, X ;Column Number
+MOV DH, Y ;Row Number
+INT 10H
+ENDM
+
+TXTBG MACRO
+    DRBX 105, 25, 105, 15, BLACK 
+    DRBX 105, 50, 105, 15, BLACK
+    DRBX 105, 75, 105, 15, BLACK
+    DRBX 105, 100, 105, 15, BLACK
+ENDM
 ;<----- END MACROS ----->
 
 .CODE
-MOV AX,@DATA
-MOV DS,AX
+MOV AX, @DATA
+MOV DS, AX
 
 MAIN PROC
-    MOV AH,00H		; SET VIDEO MODE
-    MOV AL,13H		; CHOOSE MODE 13
+    MOV AH, 00H		; SET VIDEO MODE
+    MOV AL, 13H		; CHOOSE MODE 13
     INT 10H         ; GRAPHICS INTERRUPT
 
+    ; BACKGROUND
+    MOV AH, 06H
+    MOV AL, 0
+    MOV CX, 0
+    MOV DH, 80
+    MOV DL, 80
+    MOV BH, BROWN
+    INT 10h
+    ; INNER AREA
+    DRBX 10, 10, 300, 180, MAGINTA
+    TXTBG
+
+    START_HERE:
+    .IF IS_MENU == 0
+        DRBX 10, 10, 300, 180, MAGINTA
+        TXTBG
+        MOV IS_MENU, 1
+    .ENDIF
+
+    MOV AX, CURR_OPT
+    ADD AX, 2
+    DRCR 90, AX, GREEN
+
+    MENU_LABEL:
+    MOV AX, CURR_OPT
+    DRBX 105, AX, 105, 15, BLACK       ;1ST-25,2ND-50
+    
+    MVCR 150, 80
+    lea dx, MSG_START
+    mov ah, 09h
+    int 21h
+
+    MVCR 150, 83
+    lea dx, MSG_INST
+    mov ah,09h
+    int 21h
+
+    MVCR 150, 86
+    lea dx,MSG_HSCORE
+    mov ah,09h
+    int 21h
+
+    MVCR 150, 89
+    lea dx,MSG_EXIT
+    mov ah,09h
+    int 21h
+    
+    mov ah, 01h
+	int 16h
+    JZ MENU_LABEL
+
+    MOV AX, CURR_OPT
+    DRCR 90, AX, MAGINTA
+
+    MOV AH,00H
+    INT 16H
+
+    CMP AH,48h
+    JE UPP
+    CMP AH,50h
+    JE DOWNN
+
+    CMP AL,13
+    JE ENTERR
+
+    JMP START_HERE
+    UPP:
+
+    CMP CURR_OPT,25
+    JE LAST
+    MOV AX,CURR_OPT
+    SUB AX,25
+    MOV CURR_OPT,AX
+    JMP START_HERE
+
+    LAST:
+    MOV CURR_OPT,100
+    JMP START_HERE
+
+    DOWNN:
+
+    CMP CURR_OPT,100
+    JE FIRST
+    MOV AX,CURR_OPT
+    ADD AX,25
+    MOV CURR_OPT,AX
+    JMP START_HERE
+
+    FIRST:
+    MOV CURR_OPT,25
+    JMP START_HERE
+
+    ENTERR:
+    CMP CURR_OPT,25
+    JE STARTGAME
+    CMP CURR_OPT,50
+    JE INSTRUCTIONSS
+
+    CMP CURR_OPT,100
+    JE EXIT
+
+    INSTRUCTIONSS:
+    MOV IS_MENU, 0
+    DRBX 10, 10, 300, 180, MAGINTA
+    MVCR 5, 3
+    lea dx, INSTRUCTIONS
+    mov ah,09h
+    int 21h
+    MVCR 3, 6
+    lea dx,INSTRUCTION1
+    mov ah,09h
+    int 21h
+    MVCR 3, 8
+    lea dx,INSTRUCTION2
+    mov ah,09h
+    int 21h
+    MVCR 3, 10
+    lea dx,INSTRUCTION3
+    mov ah,09h
+    int 21h
+    MVCR 3, 12
+    lea dx,INSTRUCTION4
+    mov ah,09h
+    int 21h
+    MVCR 3, 14
+    lea dx,INSTRUCTION5
+    mov ah,09h
+    int 21h
+    MVCR 3, 16
+    lea dx,INSTRUCTION6
+    mov ah,09h
+    int 21h
+    MVCR 3, 18
+    lea dx,INSTRUCTION7
+    mov ah,09h
+    int 21h
+    MVCR 15, 22
+    lea dx,INSTRUCTION8
+    mov ah,09h
+    int 21h
+
+    INPUT_INST:
+    mov ah, 01h
+	int 16h
+    JZ INPUT_INST
+    MOV AH, 00H
+    INT 16H
+    CMP AL, 08
+    JE START_HERE
+    JNE INSTRUCTIONSS
+
+    STARTGAME:
     MOV AH, 06H
     MOV AL, 0
     MOV CX, 0
@@ -249,7 +432,7 @@ MAIN PROC
     INT 10H
 
     ;STRING
-    LEA DX, MSG_START
+    LEA DX, MSG_LAUNCH
     MOV AH, 09H
     INT 21H
 
@@ -287,7 +470,7 @@ MAIN PROC
             CMP AL, 32
             JNE LOOPER
             MOV PLAY, 1
-            DRBX 60, 120 , 190, 10, LGRAY
+            DRBX 85, 120 , 195, 10, LGRAY
         .ENDIF
         .IF AH == 4DH ; SCAN CODE RIGHT
             ADD BX, 40
@@ -636,6 +819,10 @@ CHECKCOLLISION ENDP
 ; <----- End Functions ----->
 
 EXIT:
+MOV AH, 00H		;SET VIDEO MODE
+MOV AL, 03H		;CHOOSE MODE 13
+INT 10H
+
 MOV AH, 4CH
 INT 21H
 END
