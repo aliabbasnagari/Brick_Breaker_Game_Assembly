@@ -28,6 +28,14 @@
     MSG_HSCORE BYTE " HIGH SCORE",'$'
     MSG_EXIT BYTE "    EXIT",'$'
 
+    MSG_PLAY DB "PLAY", '$'
+    MSG_PAUSE DB "PAUSE", '$'
+    MSG_GAMEOVER DB "GAME OVER", '$'
+    MSG_LEVEL DB "LEVEL", '$' 
+    MSG_LIVES DB "LIVES", '$'
+    MSG_NAME DB "NAME", '$'
+    MSG_SCORE DB "SCORE", '$'
+
     INSTRUCTIONS BYTE "Welcome to Brick Breaker game.",'$'
     INSTRUCTION1 BYTE "You have to break all the Bricks",'$'
     INSTRUCTION2 BYTE "without the ball hitting spikes.",'$'
@@ -39,9 +47,9 @@
     INSTRUCTION8 BYTE "Have FUN ", 3, '$'
 
     ; <--- OUTER BORDER --->
-    X_MIN DW 50
+    X_MIN DW 60
     Y_MIN DW 5
-    X_MAX DW 300
+    X_MAX DW 315
     Y_MAX DW 180
     
     ; <--- BALL DATA --->
@@ -49,14 +57,14 @@
     C_Y DW 0
     X_DIR DB 0
     Y_DIR DB 0
-    B_SPEED DW 2
+    B_SPEED DW 3
     TP DW 0
 
     ; <--- BLOCKS DATA --->
     NO_BLOCKS DW 0
-    X_CORDS DW 50, 103, 156, 209, 262,
-               50, 103, 156, 209, 262,
-               50, 103, 156, 209, 262
+    X_CORDS DW 60, 111, 162, 213, 264,
+               60, 111, 162, 213, 264,
+               60, 111, 162, 213, 264
 
     Y_CORDS DW  5, 5,  5,  5,  5,
                15, 15,  15,  15,  15,
@@ -76,7 +84,7 @@
 
     ; <--- SLIDER DATA --->
     S_POS DW 130
-    S_LEN DW 50
+    S_LEN DW 51
     S_SPEED DW 2
 
     ; <--- FPS DATA --->
@@ -99,11 +107,27 @@
 
     ; <--- GAME STATUS --->
     PLAY DB 0
+
+    ; <--- LEVEL DATA --->
+    LEVEL DB 1
+
+    ;<--- PLAYER DATA --->
+    PLAYER_NAME DB ?
+    SCORE DW ?
+    LIVES DB 3
+
+    ;<--- SOUND DATA --->
+    FREQ DW 7239
+    DUR DW 5
+
     ; <--- HELPING DATA --->
     BOOL DB 0
     IS_MENU DB 1
     COL BYTE 0
     CURR_OPT WORD 25
+    NO_DIG DB 0
+    REM DB 0
+    QUO DB 0
 
 ;<----- MACROS ----->
 ; X = X-Coordinate, Y = Y-Coordinate, L = length, H = Height, C = Color
@@ -239,6 +263,12 @@ TXTBG MACRO
     DRBX 105, 75, 105, 15, BLACK
     DRBX 105, 100, 105, 15, BLACK
 ENDM
+
+BEEP MACRO F, D
+    MOV FREQ, F
+    MOV DUR, D
+    CALL PLAY_BEEP
+ENDM
 ;<----- END MACROS ----->
 
 .CODE
@@ -302,6 +332,7 @@ MAIN PROC
     JZ MENU_LABEL
 
     MOV AX, CURR_OPT
+    ADD AX, 2
     DRCR 90, AX, MAGINTA
 
     MOV AH,00H
@@ -410,11 +441,11 @@ MAIN PROC
     MOV BH, BROWN
     INT 10h
 
-    DRBX 50, 5, 265, 185, LGRAY
-    DRBX 50, 191, 265, 7, LGRAY
-    MOV BX, 50
+    DRBX 60, 5, 255, 185, LGRAY
+    DRBX 60, 191, 255, 7, LGRAY
+    MOV BX, 60
     LOOP_SPIKE:
-    PUSH BX
+        PUSH BX
         DRTR BX, 192, 8, DGRAY
         POP BX
         ADD BX, 10
@@ -423,26 +454,23 @@ MAIN PROC
 
 
     CALL DRAWBLOCKS
+    DRBX 5, 5, 50, 190, BLACK
 
-    MOV DX, 0
-    MOV AH, 02h
-    MOV BX, 0
-    MOV DL, 11
-    MOV DH, 15
-    INT 10H
-
+    MVCR 11, 15
     ;STRING
     LEA DX, MSG_LAUNCH
     MOV AH, 09H
     INT 21H
 
-    MOV TIME_TRACK, 0
     MOV C_X, 150
     MOV C_Y, 175
+    MOV TIME_TRACK, 0
     LOOPER:
         MOV BX, C_X
         MOV DX, C_Y
         DRCR BX, DX, BLUE
+
+        CALL PRINT_DATA
 
         MOV AH, 2CH
         INT 21H
@@ -458,12 +486,12 @@ MAIN PROC
         DRCR BX, DX, BLUE
 
         MOV BX, S_POS
-        DRBX BX, 185, 50, 5, GREEN
+        MOV CX, S_LEN
+        DRBX BX, 185, CX, 5, GREEN
 
         MOV AH, 1 ; INTRUPT FOR KEYBOARD INPUT
         INT 16H
         JZ LOOPER
-        MOV BX, S_POS
         MOV AH, 0
         INT 16H
         .IF PLAY == 0
@@ -472,14 +500,14 @@ MAIN PROC
             MOV PLAY, 1
             DRBX 85, 120 , 195, 10, LGRAY
         .ENDIF
+        MOV BX, S_POS
         .IF AH == 4DH ; SCAN CODE RIGHT
-            ADD BX, 40
+            ADD BX, S_LEN
             .IF BX < X_MAX
                 MOV BX, S_POS
                 MOV CX, S_SPEED
                 DEC CX
                 DRBX BX, 185, CX, 5, LGRAY
-
                 MOV BX, S_SPEED
                 ADD S_POS, BX
             .ENDIF
@@ -491,7 +519,6 @@ MAIN PROC
                 DEC CX
                 DEC BX
                 DRBX BX, 185, CX, 5, LGRAY
-
                 MOV BX, S_SPEED
                 SUB S_POS, BX
             .ENDIF
@@ -513,6 +540,7 @@ MOVE_BALL PROC
     
     .IF X_DIR == 0
         MOV BX, C_X
+        ADD BX, 10
         .IF BX < X_MAX
             MOV BX, B_SPEED
             ADD C_X, BX
@@ -533,10 +561,13 @@ MOVE_BALL PROC
         MOV BX, C_Y
         .IF BX >= Y_MAX
             MOV Y_DIR, 1
+            CALL HIT_SPIKES
         .ELSEIF BX >= 175
             MOV BX, S_POS
+            SUB BX, 8
             .IF C_X >= BX
-                ADD BX, 50
+                ADD BX, 8
+                ADD BX, S_LEN
                 .IF C_X < BX
                     MOV Y_DIR, 1
                 .ELSE
@@ -776,13 +807,13 @@ DRAWBLOCKS PROC
     MOV SI, 0
     MOV DI, 0
     MOV NO_BLOCKS, 0
-    DRBX 50, 5, 265, 35, LGRAY
+    DRBX 60, 5, 255, 35, LGRAY
     LOOP_B:
         MOV AX, [X_CORDS + SI]
         MOV BX, [Y_CORDS + SI]
         MOV CL, [B_COLOR + DI]
         .IF [B_HITS + DI] != 0
-            DRBLK AX, BX, 53, 10, CL
+            DRBLK AX, BX, 51, 10, CL
         .ENDIF
         ADD SI, 2
         INC DI
@@ -795,27 +826,148 @@ DRAWBLOCKS ENDP
 CHECKCOLLISION PROC
     MOV CX, C_X
     MOV DX, C_Y
-    .IF Y_DIR == 1
-        MOV SI, 0
+    MOV SI, 0
         MOV DI, 0
         .WHILE SI < SIZEOF Y_CORDS
             MOV AX, [Y_CORDS + SI]
             MOV BX, [X_CORDS + SI]
             ADD AX, 10
             ADD BX, 50
-            .IF DX <= AX && CX <= BX && [B_HITS + DI] != 0
-                MOV AX, 0
-                MOV Y_DIR, 0
-                DEC [B_HITS + DI]
-                CALL DRAWBLOCKS
-                RET
+            .IF [B_HITS + DI] != 0 && DX <= AX && CX <= BX
+                MOV BX, [X_CORDS + SI]
+                .IF CX >= BX
+                    MOV AX, 0
+                    MOV Y_DIR, 0
+                    DEC [B_HITS + DI]
+                    MOV CX, 0
+                    MOV CL, [B_POINT + DI]
+                    ADD SCORE, CX
+                    BEEP 1355, 3
+                    CALL DRAWBLOCKS
+                    RET
+                .ENDIF
             .ENDIF
             ADD SI, 2
             INC DI
         .ENDW
-    .ENDIF
     RET
 CHECKCOLLISION ENDP
+
+PRINT_DATA PROC
+    MVCR 1, 1
+    LEA DX, MSG_LEVEL
+    MOV AH, 09H
+    INT 21H
+
+    MVCR 3, 2
+    MOV AH, 09
+    MOV AL, LEVEL
+    ADD AL, 48
+    MOV BL, YELLOW
+    MOV CX, 1
+    MOV BH, 0
+    INT 10H
+
+    MVCR 1, 4
+    LEA DX, MSG_LIVES
+    MOV AH, 09H
+    INT 21H
+
+    MVCR 2, 5
+    MOV CX, 0
+    MOV AH, 09
+    MOV AL, 3
+    MOV BL, RED
+    MOV CL, LIVES
+    MOV BH, 0
+    INT 10H
+
+    MVCR 1, 7
+    LEA DX, MSG_SCORE
+    MOV AH, 09H
+    INT 21H
+
+    MVCR 2, 8
+    MOV AX, SCORE
+    CALL PRINT_NUM
+
+    RET
+PRINT_DATA ENDP
+
+PRINT_NUM PROC
+    MOV NO_DIG, 0
+    MOV BX, AX
+    LOOP_D:
+        MOV AX, BX
+        MOV BL, 10
+        DIV BL
+        MOV REM, AH
+        MOV QUO, AL
+        INC NO_DIG
+        
+        MOV AH, 0
+        MOV BX, AX
+
+        MOV AX, 0
+        MOV AL, REM
+        PUSH AX
+
+        CMP QUO, 0
+        JNE LOOP_D
+    
+    MOV CX, 0
+    MOV CL, NO_DIG
+    LOOP1:
+        POP BX
+        MOV AH, 02H
+        MOV DL, BL
+        ADD DL, 48
+        INT 21h
+    LOOP LOOP1
+    RET
+PRINT_NUM ENDP
+
+HIT_SPIKES PROC
+    BEEP 9121, 5 
+    MVCR 11, 15
+    LEA DX, MSG_LAUNCH
+    MOV AH, 09H
+    INT 21H
+    MOV CX, S_POS
+    ADD CX, 20
+    MOV C_X, CX
+    MOV C_Y, 175
+    MOV PLAY, 0
+    DEC LIVES
+    DRBX 5, 5, 50, 70, BLACK
+    CALL PRINT_DATA
+
+    RET
+HIT_SPIKES ENDP
+
+PLAY_BEEP PROC USES AX BX CX
+    MOV     AL, 182
+    OUT     43H, AL
+    MOV     AX, FREQ
+    OUT     42H, AL
+    MOV     AL, AH
+    OUT     42H, AL
+    IN      AL, 61H
+    OR      AL, 00000011B
+    OUT     61H, AL
+    MOV     BX, DUR
+	PAUSE1:
+    MOV     CX, 65535
+	PAUSE2:
+    DEC     CX
+    JNE     PAUSE2
+    DEC     BX
+    JNE     PAUSE1
+    IN      AL, 61H
+    AND     AL, 11111100B
+    OUT     61H, AL
+    RET
+PLAY_BEEP ENDP
 ; <----- End Functions ----->
 
 EXIT:
