@@ -85,13 +85,15 @@
                 0,  0,  0,  0,  0,
                 0,  0,  0,  0,  0,
 
+    RANDOMIZER DB 3, 8, 10, 13, 15, 16, 22, 24
+
     IS_SPECIAL DB 0
     NO_FIXED DB 0
 
     ; <--- SLIDER DATA --->
     S_POS DW 130
     S_LEN DW 51
-    S_SPEED DW 3
+    S_SPEED DW 5
 
     ; <--- FPS DATA --->
     TIME_TRACK DB 0
@@ -146,7 +148,7 @@
     QUO DB 0
 
     ; <--- FILE DATA--->
-    FILENAMEE BYTE "lab14.txt", 0
+    FILENAMEE BYTE "BBSCORES.TXT", 0
     MSGG_1 BYTE "ENTER YOUR NAME : ",'$'
     NAMEE  BYTE 25 DUP(0),'$'
     BUFFER BYTE 200 DUP(0),'$'
@@ -394,6 +396,13 @@ MAIN PROC
         CALL NAMEINPUT
 
     JMP_MENU:
+        MOV AH, 06H ; BACKGROUND
+        MOV AL, 0
+        MOV CX, 0
+        MOV DH, 80
+        MOV DL, 80
+        MOV BH, BROWN
+        INT 10h
         DRBX 5, 5, 310, 190, MAGINTA ; INNER AREA
         TXTBG
 
@@ -506,8 +515,6 @@ MAIN PROC
     INT 10h
 
     MOV IS_MENU, 0
-    
-    MVCR 0, 1
     CALL READ_FILE
     
     INPUT_HSCOREE:
@@ -517,7 +524,7 @@ MAIN PROC
     MOV AH, 00H
     INT 16H
     CMP AL, 08
-    JE START_MENU
+    JE JMP_MENU
     JNE HIGHSCORESS
 
     INSTRUCTIONSS:
@@ -1049,9 +1056,11 @@ CHECKCOLLISION PROC USES CX
                     MOV BL, [B_COLOR + DI]
                    .IF BL != 00
                         DEC [B_HITS + DI]
-                        DEC BX
+                        SUB BX, 2
                         ADD SCORE, BX
                         DEC [B_COLOR + DI]
+                    .ELSEIF SI == 14 && IS_SPECIAL == 1
+                        CALL ISSPECIAL
                    .ENDIF
                     .IF [B_HITS + DI] == 0
                         MOV AX, [X_CORDS + SI]
@@ -1079,7 +1088,7 @@ CHECKCOLLISION PROC USES CX
                     MOV BL, [B_COLOR + DI]
                     .IF BL != 00
                         DEC [B_HITS + DI]
-                        DEC BX
+                        SUB BX, 2
                         ADD SCORE, BX
                         DEC [B_COLOR + DI]
                    .ENDIF
@@ -1107,7 +1116,7 @@ CHECKCOLLISION PROC USES CX
                     MOV BL, [B_COLOR + DI]
                     .IF BL != 00
                         DEC [B_HITS + DI]
-                        DEC BX
+                        SUB BX, 2
                         ADD SCORE, BX
                         DEC [B_COLOR + DI]
                    .ENDIF
@@ -1135,7 +1144,7 @@ CHECKCOLLISION PROC USES CX
                     MOV BL, [B_COLOR + DI]
                     .IF BL != 00
                         DEC [B_HITS + DI]
-                        DEC BX
+                        SUB BX, 2
                         ADD SCORE, BX
                         DEC [B_COLOR + DI]
                    .ENDIF
@@ -1318,6 +1327,9 @@ SET_LEVEL PROC
     DRCR AX, BX, LGRAY
     MOV C_X, 150
     MOV C_Y, 175
+    MOV CX, S_POS
+    DRBX CX, 175, 51, 15, LGRAY
+    MOV S_POS, 120
     MOV SI, 0
     MOV CX, 0
     MOV CL, REM_BLOCKS
@@ -1327,13 +1339,16 @@ SET_LEVEL PROC
         MOV DL, RAND
         .IF LEVEL == 3
             MOV IS_SPECIAL, 1
-            .IF DL == 10 || DL == 11 || DL == 12
+            .IF DL == 11 || DL == 12
                 MOV DH, 10
                 MOV [B_COLOR + SI], 00
                 MOV [B_HITS + SI], DH
                 INC NO_FIXED
+            .ELSE
+                JMP SKIPED
             .ENDIF
         .ELSEIF
+            SKIPED:
             MOV DH, LEVEL
             MOV [B_COLOR + SI], DL
             MOV [B_HITS + SI], DH
@@ -1356,7 +1371,7 @@ GET_RAND PROC
     CMP DL, RAND
     JE RANDOM
     MOV RAND, DL
-    .IF RAND > 12 || RAND < 2
+    .IF RAND > 12 || RAND < 3
         JMP RANDOM
     .ENDIF
     RET
@@ -1398,6 +1413,14 @@ READ_FILE PROC
 	MOV DX,OFFSET FILENAMEE			
 	INT 21H							
 	MOV HANDLE, AX
+
+    MOV AH, 06H ; BACKGROUND
+    MOV AL, 0
+    MOV CX, 0
+    MOV DH, 80
+    MOV DL, 80
+    MOV BH, BLACK
+    INT 10h
        
 	MOV BX,0
 	mov ah,3fh
@@ -1405,18 +1428,18 @@ READ_FILE PROC
 	mov dx,offset buffer					 ; dos functions like dx having pointers for some reason.
 	mov bx,handle						 ; bx needs the file handle.
 	int 21h
+
+    MVCR 0, 2
         
 	lea dx,buffer
 	mov ah,09h
 	int 21h
 
-	MVCR 10,1
-    mov ah,02h
-	mov dl,10
+    MVCR 3, 23
+	lea dx,MSG_GOTOMENU
+	mov ah,09h
 	int 21h
-	mov ah,02h
-	mov dl,10
-	int 21h
+
 	RET
 READ_FILE ENDP
 
@@ -1482,6 +1505,45 @@ SAV_SCORE PROC USES AX BX CX DX SI
 	MOV NAMEE[17],AL
 	RET
 SAV_SCORE ENDP
+
+ISSPECIAL PROC USES AX SI DI
+MOV AL, REM_BLOCKS
+SUB AL, NO_FIXED
+.IF AL < 5
+    PUSH DI
+    MOV DI, 0
+    LOOP_SP:
+        MOV [B_HITS + SI], 0
+        INC DI
+    CMP DI, NO_BLOCKS
+    JNE LOOP_SP
+    POP DI
+.ELSE
+    CALL RAND_REMOVE
+.ENDIF
+ISSPECIAL ENDP
+
+RAND_REMOVE PROC USES SI AX CX
+MOV SI, NO_BLOCKS
+MOV AX, 0
+MOV CX, LENGTHOF B_HITS
+HEREE:
+LOOP_REM:
+    .IF AX == 5
+        RET
+    .ENDIF
+    .IF [B_HITS + SI] != 0
+        MOV [B_HITS + SI], 0
+    .ENDIF
+    ADD SI, 2
+LOOP LOOP_REM
+.IF AX < 4
+    MOV SI, NO_BLOCKS
+    DEC SI
+    JMP HEREE
+.ENDIF
+    RET
+RAND_REMOVE ENDP
 
 ; <----- End Functions ----->
 
