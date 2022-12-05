@@ -27,6 +27,7 @@
     MSG_INST BYTE "INSTRUCTIONS",'$'
     MSG_HSCORE BYTE " HIGH SCORE",'$'
     MSG_EXIT BYTE "    EXIT",'$'
+    MSG_CONTINUE BYTE " CONTINUE",'$'
 
     MSG_PLAY DB "PLAY", '$'
     MSG_PAUSE DB "PAUSE", '$'
@@ -146,6 +147,20 @@
     NO_DIG DB 0
     REM DB 0
     QUO DB 0
+
+    ;<--- FILE DATA--->
+    
+    FILENAMEE BYTE "LAB14.TXT",0
+    MSGG_1 BYTE "ENTER YOUR NAME : ",'$'
+    NAMEE  BYTE 25 DUP(0),'$'
+    BUFFER BYTE 200 DUP(0),'$'
+    HANDLE DW 0
+    QUOO BYTE  0
+    REMM BYTE  0
+    NO_DIGG BYTE  0
+    
+    
+
 
 ;<----- MACROS ----->
 ; X = X-Coordinate, Y = Y-Coordinate, L = length, H = Height, C = Color
@@ -327,6 +342,16 @@ MAIN PROC
     MOV BH, BROWN
     INT 10h
 
+
+    MOV AH,02H
+    MOV BX,0
+    MOV DH, 10 ;Row Number
+    MOV DL, 10 ;Column Number
+    INT 10H
+
+    CALL NAMEINPUT
+
+
     JMP_MENU:
     ; INNER AREA
     DRBX 5, 5, 310, 190, MAGINTA
@@ -352,16 +377,21 @@ MAIN PROC
     int 21h
 
     MVCR 150, 83
+    lea dx, MSG_CONTINUE
+    mov ah, 09h
+    int 21h
+
+    MVCR 150, 86
     lea dx, MSG_INST
     mov ah,09h
     int 21h
 
-    MVCR 150, 86
+    MVCR 150, 89
     lea dx,MSG_HSCORE
     mov ah,09h
     int 21h
 
-    MVCR 150, 89
+    MVCR 150, 92
     LEA DX, MSG_EXIT
     MOV AH, 09h
     INT 21h
@@ -396,12 +426,12 @@ MAIN PROC
     JMP START_MENU
 
     LAST:
-    MOV CURR_OPT,100
+    MOV CURR_OPT,125
     JMP START_MENU
 
     DOWNN:
 
-    CMP CURR_OPT,100
+    CMP CURR_OPT,125
     JE FIRST
     MOV AX,CURR_OPT
     ADD AX,25
@@ -416,10 +446,41 @@ MAIN PROC
     CMP CURR_OPT,25
     JE START_GAME
     CMP CURR_OPT,50
+    JE START_GAME
+    CMP CURR_OPT,75
     JE INSTRUCTIONSS
-
     CMP CURR_OPT,100
+    JE HIGHSCORESS
+    CMP CURR_OPT,125
     JE EXIT
+
+
+    HIGHSCORESS:
+
+     MOV AH, 06H
+    MOV AL, 0
+    MOV CX, 0
+    MOV DH, 80
+    MOV DL, 80
+    MOV BH, BROWN
+    INT 10h
+
+    MOV IS_MENU, 0
+    
+    MVCR 0,1
+    CALL READ_FILE
+    
+    
+    INPUT_HSCOREE:
+    mov ah, 01h
+	int 16h
+    JZ INPUT_HSCOREE
+    MOV AH, 00H
+    INT 16H
+    CMP AL, 08
+    JE START_MENU
+    JNE HIGHSCORESS
+
 
     INSTRUCTIONSS:
     MOV IS_MENU, 0
@@ -505,6 +566,7 @@ MAIN PROC
     MOV TIME_TRACK, 0
     LOOPER:
         .IF LIVES == 0
+
             MOV PLAY, 0
             MOV GAMEOVER, 1
             MVCR 11, 15
@@ -593,10 +655,138 @@ MAIN PROC
             .ENDIF
         .ENDIF
     JMP LOOPER
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 MAIN ENDP
 JMP EXIT
 
 ; <----- Functions ----->
+
+
+      READ_FILE PROC
+	    MOV AH,3DH				      	
+    	MOV AL,02					  	
+		MOV DX,OFFSET FILENAMEE			
+		INT 21H							
+		MOV HANDLE,AX
+
+       
+		MOV BX,0
+		mov ah,3fh
+		mov cx,200					           ;cx is how many bytes to read.
+		mov dx,offset buffer					 ; dos functions like dx having pointers for some reason.
+		mov bx,handle						 ; bx needs the file handle.
+		int 21h
+
+
+        
+		lea dx,buffer
+		mov ah,09h
+		int 21h
+
+		MVCR 10,1
+        mov ah,02h
+		mov dl,10
+		int 21h
+		mov ah,02h
+		mov dl,10
+		int 21h
+			RET
+	READ_FILE ENDP
+
+
+
+      WRITE_FILE PROC USES AX BX CX DX SI
+			;<OPEN FILE>
+
+			
+			MOV AH,3DH				      	
+			MOV AL,02					  	
+			MOV DX,OFFSET FILENAMEE			
+			INT 21H							
+			MOV HANDLE,AX
+
+			;<WRITE IN FILE>
+			MOV BX,HANDLE
+			MOV CX,0
+			MOV DX, 0
+			MOV AH,42H
+			MOV AL,2
+			INT 21H
+			MOV AH, 40H                   ; SERVICE TO WRITE TO A FILE
+			MOV BX, HANDLE
+			MOV CX, LENGTHOF NAMEE                     ;STRING LENGTH.
+			MOV DX, OFFSET NAMEE
+			INT 21H
+
+			;<CLOSE FILE>
+			
+			MOV AH, 3EH 
+			MOV BX, HANDLE
+			INT 21H
+
+			RET
+	WRITE_FILE ENDP
+
+
+	SAV_SCORE PROC USES AX BX CX DX SI
+    
+		MOV NO_DIGG, 0
+		MOV BX, SCORE
+		LOOP_D:
+			MOV AX, BX
+			MOV BL, 10
+			DIV BL
+			MOV REMM, AH
+			MOV QUOO, AL
+			INC NO_DIGG
+        
+			MOV AH, 0
+			MOV BX, AX
+
+			MOV AX, 0
+			MOV AL, REMM
+			PUSH AX
+
+			CMP QUOO, 0
+			JNE LOOP_D
+    
+		MOV CX, 0
+		MOV CL, NO_DIGG
+		MOV SI,21
+
+
+		LOOP1:
+			POP BX
+			ADD BL,48
+			MOV NAMEE[SI], BL
+			INC SI
+        
+		LOOP LOOP1
+
+		MOV AL,LEVEL
+		ADD AL,48
+		MOV NAMEE[17],AL
+
+		RET
+SAV_SCORE ENDP
+
 
 ; TO MOVE THE BALL IN THE PLAY AREA
 MOVE_BALL PROC
@@ -1165,6 +1355,10 @@ HIT_SPIKES PROC
         MOV C_X, CX
         MOV C_Y, 175
     .ELSE
+        
+         
+           CALL SAV_SCORE
+	       CALL WRITE_FILE
         MVCR 17, 15
         LEA DX, MSG_GAMEOVER
         MOV AH, 09H
@@ -1268,6 +1462,42 @@ GET_RAND PROC
     .ENDIF
     RET
 GET_RAND ENDP
+
+
+
+	NAMEINPUT PROC
+
+			LEA DX,MSGG_1
+			MOV AH,09H
+			INT 21H
+
+			MOV AH,02H
+			MOV DL,10
+			INT 21H
+
+            MOV AH,02H
+            MOV BX,0
+            MOV DH, 12 ;Row Number
+            MOV DL, 10 ;Column Number
+            INT 10H
+
+			MOV SI,4
+			.WHILE(AL!=13)
+
+			MOV AH,01H
+			INT 21H
+			.IF AL != 13
+				MOV NAMEE[SI],AL
+			.ENDIF
+			INC SI
+			.ENDW
+			
+			MOV NAMEE[25], 10
+			RET
+	NAMEINPUT ENDP
+
+
+
 
 ; <----- End Functions ----->
 
