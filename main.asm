@@ -19,11 +19,11 @@
     LMAGINTA EQU 13
     YELLOW   EQU 14
     WHITE    EQU 15
-    ; <--- END COLORS --->
 
     ; <--- MESSAGES --->
     MSG_LAUNCH DB "PRESS SPACEBAR TO LAUNCH", '$'
     MSG_START BYTE " START GAME",'$'
+    MSG_CONTINUE BYTE " CONTINUE",'$'
     MSG_INST BYTE "INSTRUCTIONS",'$'
     MSG_HSCORE BYTE " HIGH SCORE",'$'
     MSG_EXIT BYTE "    EXIT",'$'
@@ -31,6 +31,7 @@
     MSG_PLAY DB "PLAY", '$'
     MSG_PAUSE DB "PAUSE", '$'
     MSG_GAMEOVER DB "GAME OVER", '$'
+    MSG_GOTOMENU DB "Press back to goto Main Menu.", '$'
     MSG_LEVEL DB "LEVEL", '$' 
     MSG_LIVES DB "LIVES", '$'
     MSG_NAME DB "NAME", '$'
@@ -46,7 +47,6 @@
     INSTRUCTION6 BYTE "move the board. press space to PLAY",'$'
     INSTRUCTION7 BYTE " or pause the game.", '$'
     INSTRUCTION8 BYTE "Have FUN ", 3, '$'
-    ; <--- END MESSAGES --->
 
     ; <--- OUTER BORDER --->
     X_MIN DW 60
@@ -65,8 +65,6 @@
     ; <--- BLOCKS DATA --->
     NO_BLOCKS DW 10
     REM_BLOCKS DB 10
-    B_LEN DW 51
-    B_HIG DW 15
     X_CORDS DW 060, 111, 162, 213, 264,
                060, 111, 162, 213, 264,
                060, 111, 162, 213, 264,
@@ -77,8 +75,8 @@
                 035, 035, 035, 035, 035,
                 050, 050, 050, 050, 050,
 
-    B_COLOR DB  001, 002, 003, 004, 005,
-                006, 007, 008, 009, 001, 
+    B_COLOR DB  002, 003, 004, 005, 006,
+                007, 008, 009, 010, 002, 
                 002, 003, 006, 005, 004,
                 009, 008, 007, 006, 005,
 
@@ -87,13 +85,13 @@
                 0,  0,  0,  0,  0,
                 0,  0,  0,  0,  0,
 
-    IS_SPECIAL DB 1
+    IS_SPECIAL DB 0
     NO_FIXED DB 0
 
     ; <--- SLIDER DATA --->
     S_POS DW 130
     S_LEN DW 51
-    S_SPEED DW 2
+    S_SPEED DW 3
 
     ; <--- FPS DATA --->
     TIME_TRACK DB 0
@@ -147,8 +145,17 @@
     REM DB 0
     QUO DB 0
 
+    ; <--- FILE DATA--->
+    FILENAMEE BYTE "lab14.txt", 0
+    MSGG_1 BYTE "ENTER YOUR NAME : ",'$'
+    NAMEE  BYTE 25 DUP(0),'$'
+    BUFFER BYTE 200 DUP(0),'$'
+    HANDLE DW 0
+    QUOO BYTE  0
+    REMM BYTE  0
+    NO_DIGG BYTE  0
+
 ;<----- MACROS ----->
-; X = X-Coordinate, Y = Y-Coordinate, L = length, H = Height, C = Color
 ; DRAW BOX
 DRBX MACRO X, Y, L, H, C
     MOV _X, X
@@ -257,7 +264,63 @@ DRBLK MACRO X, Y, L, H, C
 ENDM
 
 ; DRAW BLOCK
-DRSBLK MACRO X, Y, L, H, C
+DRSBLK MACRO X, Y, L, H
+    PUSH X
+    PUSH Y
+    MOV _X, X
+    MOV _Y, Y
+    ADD _X, 6
+    ADD _Y, 6
+    MOV TMP_LEN, L
+    MOV TMP_HIG, H
+    SUB TMP_LEN, 12
+    SUB TMP_HIG, 12
+    MOV COLOR, RED
+    CALL DRAWBOX
+    POP Y
+    POP X
+    PUSH X
+    PUSH Y
+    MOV _X, X
+    MOV _Y, Y
+    ADD _X, 5
+    ADD _Y, 5
+    MOV TMP_LEN, L
+    MOV TMP_HIG, H
+    SUB TMP_LEN, 10
+    SUB TMP_HIG, 10
+    MOV COLOR, 2
+    CALL DRAWHBOX
+    POP Y
+    POP X
+    PUSH X
+    PUSH Y
+    MOV _X, X
+    MOV _Y, Y
+    ADD _X, 4
+    ADD _Y, 4
+    MOV TMP_LEN, L
+    MOV TMP_HIG, H
+    SUB TMP_LEN, 8
+    SUB TMP_HIG, 8
+    MOV COLOR, 3
+    CALL DRAWHBOX
+    POP Y
+    POP X
+    PUSH X
+    PUSH Y
+    MOV _X, X
+    MOV _Y, Y
+    ADD _X, 3
+    ADD _Y, 3
+    MOV TMP_LEN, L
+    MOV TMP_HIG, H
+    SUB TMP_LEN, 6
+    SUB TMP_HIG, 6
+    MOV COLOR, 5
+    CALL DRAWHBOX
+    POP Y
+    POP X
     PUSH X
     PUSH Y
     MOV _X, X
@@ -268,7 +331,7 @@ DRSBLK MACRO X, Y, L, H, C
     MOV TMP_HIG, H
     SUB TMP_LEN, 4
     SUB TMP_HIG, 4
-    MOV COLOR, C
+    MOV COLOR, YELLOW
     CALL DRAWHBOX
     POP Y
     POP X
@@ -286,11 +349,11 @@ ENDM
 
 ; MOVE CURR_OPTSOR
 MVCR MACRO X, Y
-MOV AH, 02H
-MOV BX, 0
-MOV DL, X ;Column Number
-MOV DH, Y ;Row Number
-INT 10H
+    MOV AH, 02H
+    MOV BX, 0
+    MOV DL, X ;Column Number
+    MOV DH, Y ;Row Number
+    INT 10H
 ENDM
 
 ; TEXT BACKGROUND
@@ -299,6 +362,7 @@ TXTBG MACRO
     DRBX 105, 50, 105, 15, BLACK
     DRBX 105, 75, 105, 15, BLACK
     DRBX 105, 100, 105, 15, BLACK
+    DRBX 105, 125, 105, 15, BLACK
 ENDM
 
 ; BEEP SOUND
@@ -318,19 +382,21 @@ MAIN PROC
     MOV AL, 13H		; CHOOSE MODE 13
     INT 10H         ; GRAPHICS INTERRUPT
 
-    ; BACKGROUND
-    MOV AH, 06H
-    MOV AL, 0
-    MOV CX, 0
-    MOV DH, 80
-    MOV DL, 80
-    MOV BH, BROWN
-    INT 10h
+    NAME_INPUT:
+        MOV AH, 06H ; BACKGROUND
+        MOV AL, 0
+        MOV CX, 0
+        MOV DH, 80
+        MOV DL, 80
+        MOV BH, BROWN
+        INT 10h
+        DRBX 5, 5, 310, 190, MAGINTA ; INNER AREA
+        CALL NAMEINPUT
 
     JMP_MENU:
-    ; INNER AREA
-    DRBX 5, 5, 310, 190, MAGINTA
-    TXTBG
+        DRBX 5, 5, 310, 190, MAGINTA ; INNER AREA
+        TXTBG
+
     START_MENU:
     .IF IS_MENU == 0
         DRBX 10, 10, 300, 180, MAGINTA
@@ -344,7 +410,7 @@ MAIN PROC
 
     MENU_LABEL:
     MOV AX, CURR_OPT
-    DRBX 105, AX, 105, 15, BLACK    ;1ST-25,2ND-50
+    DRBX 105, AX, 105, 15, BLACK
     
     MVCR 150, 80
     lea dx, MSG_START
@@ -352,16 +418,21 @@ MAIN PROC
     int 21h
 
     MVCR 150, 83
+    lea dx, MSG_CONTINUE
+    mov ah, 09h
+    int 21h
+
+    MVCR 150, 86
     lea dx, MSG_INST
     mov ah,09h
     int 21h
 
-    MVCR 150, 86
+    MVCR 150, 89
     lea dx,MSG_HSCORE
     mov ah,09h
     int 21h
 
-    MVCR 150, 89
+    MVCR 150, 92
     LEA DX, MSG_EXIT
     MOV AH, 09h
     INT 21h
@@ -396,16 +467,16 @@ MAIN PROC
     JMP START_MENU
 
     LAST:
-    MOV CURR_OPT,100
+    MOV CURR_OPT,125
     JMP START_MENU
 
     DOWNN:
 
-    CMP CURR_OPT,100
+    CMP CURR_OPT, 125
     JE FIRST
-    MOV AX,CURR_OPT
-    ADD AX,25
-    MOV CURR_OPT,AX
+    MOV AX, CURR_OPT
+    ADD AX, 25
+    MOV CURR_OPT, AX
     JMP START_MENU
 
     FIRST:
@@ -414,12 +485,40 @@ MAIN PROC
 
     ENTERR:
     CMP CURR_OPT,25
-    JE START_GAME
+    JE RESET_GAME
     CMP CURR_OPT,50
+    JE START_GAME
+    CMP CURR_OPT,75
     JE INSTRUCTIONSS
-
     CMP CURR_OPT,100
+    JE HIGHSCORESS
+    CMP CURR_OPT,125
     JE EXIT
+
+    HIGHSCORESS:
+
+     MOV AH, 06H
+    MOV AL, 0
+    MOV CX, 0
+    MOV DH, 80
+    MOV DL, 80
+    MOV BH, BROWN
+    INT 10h
+
+    MOV IS_MENU, 0
+    
+    MVCR 0, 1
+    CALL READ_FILE
+    
+    INPUT_HSCOREE:
+    mov ah, 01h
+	int 16h
+    JZ INPUT_HSCOREE
+    MOV AH, 00H
+    INT 16H
+    CMP AL, 08
+    JE START_MENU
+    JNE HIGHSCORESS
 
     INSTRUCTIONSS:
     MOV IS_MENU, 0
@@ -471,6 +570,32 @@ MAIN PROC
     JE START_MENU
     JNE INSTRUCTIONSS
 
+    RESET_GAME:
+    MOV SCORE, 0
+    MOV NO_BLOCKS, 10
+    MOV REM_BLOCKS, 10
+    MOV IS_SPECIAL, 0
+    MOV NO_FIXED, 0
+    MOV S_POS, 130
+    MOV S_LEN, 51
+    MOV S_SPEED, 2
+    MOV LEVEL, 1
+    MOV LIVES, 3
+
+    MOV SI, 9
+    MOV CX, NO_BLOCKS
+    LOOP_RESET:
+        .IF SI == 9
+            MOV AL, 2
+        .ELSE
+            MOV AX, SI
+            ADD AL, 2
+        .ENDIF
+        MOV B_COLOR[SI], AL
+        MOV B_HITS[SI], 1
+        DEC SI
+    LOOP LOOP_RESET
+
     START_GAME:
     MOV AH, 06H
     MOV AL, 0
@@ -480,8 +605,8 @@ MAIN PROC
     MOV BH, BROWN
     INT 10h
 
-    DRBX 60, 5, 255, 185, LGRAY
-    DRBX 60, 191, 255, 7, LGRAY
+    DRBX 60, 5, 255, 185, LGRAY  ; GAME PLAY AREA
+    DRBX 60, 191, 255, 7, LGRAY  ; SPIKES AREA
     MOV BX, 60
     LOOP_SPIKE:
         PUSH BX
@@ -493,9 +618,7 @@ MAIN PROC
 
     CALL DRAWBLOCKS
     DRBX 5, 5, 50, 190, BLACK
-
     MVCR 11, 15
-    ;STRING
     LEA DX, MSG_LAUNCH
     MOV AH, 09H
     INT 21H
@@ -510,7 +633,10 @@ MAIN PROC
             MVCR 11, 15
         .ENDIF
 
-        .IF REM_BLOCKS == 0
+        MOV AL, REM_BLOCKS
+        SUB AL, NO_FIXED
+        .IF AL == 0
+            CALL STOP_BEEP
             CALL SET_LEVEL
         .ENDIF
 
@@ -542,7 +668,7 @@ MAIN PROC
 
         MOV BX, S_POS
         MOV CX, S_LEN
-        DRBX BX, 185, CX, 5, GREEN
+        DRBX BX, 185, CX, 5, RED
 
         MOV AH, 1 ; INTRUPT FOR KEYBOARD INPUT
         INT 16H
@@ -569,28 +695,41 @@ MAIN PROC
                 JMP LOOPER
             .ENDIF
         .ENDIF
-        MOV BX, S_POS
         .IF AH == 4DH ; SCAN CODE RIGHT
-            ADD BX, S_LEN
-            .IF BX < X_MAX
-                MOV BX, S_POS
-                MOV CX, S_SPEED
-                DEC CX
-                DRBX BX, 185, CX, 5, LGRAY
-                MOV BX, S_SPEED
-                ADD S_POS, BX
-            .ENDIF
-        .ELSEIF AH == 4BH ; SCAN CODE LEFT
-            .IF BX > X_MIN
+            MOV CX, S_SPEED
+            LOOP_SLIDER1:
+            PUSH CX
                 MOV BX, S_POS
                 ADD BX, S_LEN
-                MOV CX, S_SPEED
-                DEC CX
+                INC BX
+                .IF BX <= X_MAX
+                    MOV BX, S_POS
+                    DRVLN BX, 185, 5, LGRAY
+                    INC S_POS
+                .ELSE
+                    POP CX
+                    JMP LOOPER
+                .ENDIF
+            POP CX
+            LOOP LOOP_SLIDER1
+        .ELSEIF AH == 4BH ; SCAN CODE LEFT
+            MOV CX, S_SPEED
+            LOOP_SLIDER2:
+            PUSH CX
+                MOV BX, S_POS
                 DEC BX
-                DRBX BX, 185, CX, 5, LGRAY
-                MOV BX, S_SPEED
-                SUB S_POS, BX
-            .ENDIF
+                .IF BX >= X_MIN
+                    MOV BX, S_POS
+                    ADD BX, S_LEN
+                    DRVLN BX, 185, 5, LGRAY
+                    MOV BX, S_SPEED
+                    DEC S_POS
+                .ELSE
+                    POP CX
+                    JMP LOOPER
+                .ENDIF
+            POP CX
+            LOOP LOOP_SLIDER2
         .ENDIF
     JMP LOOPER
 MAIN ENDP
@@ -785,42 +924,6 @@ DRAWHBOX PROC
     RET
 DRAWHBOX ENDP
 
-; TO DRAW A LINE BETWEEN COORDINATES
-DRAWLINE PROC
-    LOOP_L:
-        MOV BOOL, 0
-        MOV AH, 0CH
-        MOV AL, COLOR   ; COLOUR
-        MOV CX, _X      ; CX IS X-AXIS
-        MOV DX, _Y      ; DX IS Y-AXIS
-        INT 10H         ; INTERRUP FOR GRAPHICS
-        MOV CX, T_X
-        CMP _X, CX
-        JE SKIP1
-        JA DEC1
-        INC _X
-        MOV BOOL, 1
-        JMP SKIP1
-        DEC1:
-            DEC _X
-            MOV BOOL, 1
-        SKIP1:
-        MOV CX, T_Y
-        CMP _Y, CX
-        JE SKIP2
-        JA DEC2
-        INC _Y
-        MOV BOOL, 1
-        JMP SKIP2
-        DEC2:
-            DEC _Y
-            MOV BOOL, 1
-        SKIP2:
-        CMP BOOL, 1
-    JE LOOP_L
-    RET
-DRAWLINE ENDP
-
 ; TO DRAW A HPRIZONTAL LINE OF LENGTH L FROM SOME COORDINATES
 DRAWHLINE PROC
     MOV CX, _X
@@ -905,41 +1008,19 @@ DRAWBLOCKS PROC
         MOV AX, [X_CORDS + SI]
         MOV BX, [Y_CORDS + SI]
         MOV CL, [B_COLOR + DI]
-        .IF [B_HITS + DI] != 0
+        .IF SI == 14 && IS_SPECIAL == 1
+            DRSBLK AX, BX, 51, 15
+        .ELSEIF [B_HITS + DI] != 0
             DRBLK AX, BX, 51, 15, CL
         .ENDIF
         ADD SI, 2
         INC DI
         POP CX
-    LOOP LOOP_B
+        DEC CX
+        CMP CX, 0
+        JNE LOOP_B
     RET
 DRAWBLOCKS ENDP
-
-; TO DRAW SLIDER
-DRAWSLIDER PROC
-    MOV CX, _Y
-    MOV T_Y, CX
-    LOOP_H:
-        MOV CX, _X
-        MOV T_X, CX
-        LOOP_W:
-            MOV AH, 0CH 
-            MOV AL, COLOR   ;COLOUR
-            MOV CX, T_X     ; CX IS X-AXIS
-            MOV DX, T_Y     ; DX IS Y-AXIS
-            INT 10H         ; INTERRUP FOR GRAPHICS
-            INC T_X
-            MOV CX, TMP_LEN
-            ADD CX, _X
-            CMP T_X, CX
-        JBE LOOP_W
-        INC T_Y
-        MOV CX, TMP_HIG
-        ADD CX, _Y
-        CMP T_Y, CX
-    JBE LOOP_H
-    RET
-DRAWSLIDER ENDP
 
 CHECKCOLLISION PROC USES CX
     MOV X1_COLL, 0
@@ -964,10 +1045,11 @@ CHECKCOLLISION PROC USES CX
                     MOV FREQ, 4063
                     MOV Y_DIR, 1
                     MOV Y1_COLL, 1
-                    DEC [B_HITS + DI]
                     MOV BX, 0
                     MOV BL, [B_COLOR + DI]
-                   .IF BL != 50
+                   .IF BL != 00
+                        DEC [B_HITS + DI]
+                        DEC BX
                         ADD SCORE, BX
                         DEC [B_COLOR + DI]
                    .ENDIF
@@ -993,10 +1075,11 @@ CHECKCOLLISION PROC USES CX
                     MOV FREQ, 4063
                     MOV Y_DIR, 0
                     MOV Y2_COLL, 1
-                    DEC [B_HITS + DI]
                     MOV BX, 0
                     MOV BL, [B_COLOR + DI]
-                    .IF BL != 50
+                    .IF BL != 00
+                        DEC [B_HITS + DI]
+                        DEC BX
                         ADD SCORE, BX
                         DEC [B_COLOR + DI]
                    .ENDIF
@@ -1020,10 +1103,11 @@ CHECKCOLLISION PROC USES CX
                     MOV FREQ, 4063
                     MOV X_DIR, 1
                     MOV X1_COLL, 1
-                    DEC [B_HITS + DI]
                     MOV BX, 0
                     MOV BL, [B_COLOR + DI]
-                    .IF BL != 50
+                    .IF BL != 00
+                        DEC [B_HITS + DI]
+                        DEC BX
                         ADD SCORE, BX
                         DEC [B_COLOR + DI]
                    .ENDIF
@@ -1047,10 +1131,11 @@ CHECKCOLLISION PROC USES CX
                     MOV FREQ, 4063
                     MOV X_DIR, 0
                     MOV X2_COLL, 1
-                    DEC [B_HITS + DI]
                     MOV BX, 0
                     MOV BL, [B_COLOR + DI]
-                    .IF BL != 50
+                    .IF BL != 00
+                        DEC [B_HITS + DI]
+                        DEC BX
                         ADD SCORE, BX
                         DEC [B_COLOR + DI]
                    .ENDIF
@@ -1113,7 +1198,6 @@ PRINT_DATA PROC
     MVCR 2, 8
     MOV AX, SCORE
     CALL PRINT_NUM
-
     RET
 PRINT_DATA ENDP
 
@@ -1165,8 +1249,14 @@ HIT_SPIKES PROC
         MOV C_X, CX
         MOV C_Y, 175
     .ELSE
-        MVCR 17, 15
+        CALL SAV_SCORE
+        CALL WRITE_FILE
+        MVCR 20, 15
         LEA DX, MSG_GAMEOVER
+        MOV AH, 09H
+        INT 21H
+        MVCR 9, 17
+        LEA DX, MSG_GOTOMENU
         MOV AH, 09H
         INT 21H
         MOV AX, S_POS
@@ -1210,11 +1300,12 @@ STOP_BEEP PROC
     RET
 STOP_BEEP ENDP
 
+; TO SET LEVELS
 SET_LEVEL PROC
     MOV PLAY, 0
     INC LEVEL
     ADD B_SPEED, 1
-    SUB S_LEN, 6
+    SUB S_LEN, 5
     MVCR 11, 15
     LEA DX, MSG_LOADING
     MOV AH, 09H
@@ -1234,12 +1325,14 @@ SET_LEVEL PROC
     PUSH CX
         CALL GET_RAND
         MOV DL, RAND
-        .IF DL == 10 || DL == 11 || DL == 12 && LEVEL == 3
+        .IF LEVEL == 3
             MOV IS_SPECIAL, 1
-            MOV DH, 10
-            MOV [B_COLOR + SI], 50
-            MOV [B_HITS + SI], DH
-            INC NO_FIXED
+            .IF DL == 10 || DL == 11 || DL == 12
+                MOV DH, 10
+                MOV [B_COLOR + SI], 00
+                MOV [B_HITS + SI], DH
+                INC NO_FIXED
+            .ENDIF
         .ELSEIF
             MOV DH, LEVEL
             MOV [B_COLOR + SI], DL
@@ -1268,6 +1361,127 @@ GET_RAND PROC
     .ENDIF
     RET
 GET_RAND ENDP
+
+NAMEINPUT PROC
+    DRBX 70, 70, 170, 50, BLACK
+    MVCR 10, 10
+    LEA DX,MSGG_1
+    MOV AH,09
+    INT 21H
+
+    MOV AH,02H
+    MOV DL,10
+    INT 21H
+
+    MOV AH,02H
+    MOV BX,0
+    MOV DH, 12 ;Row Number
+    MOV DL, 10 ;Column Number
+    INT 10H
+
+    MOV SI,4
+    .WHILE(AL!=13)
+	    MOV AH,01H
+	    INT 21H
+	    .IF AL != 13
+	    	MOV NAMEE[SI],AL
+	    .ENDIF
+	    INC SI
+	.ENDW
+	MOV NAMEE[25], 10
+	RET
+NAMEINPUT ENDP
+
+READ_FILE PROC
+	MOV AH,3DH				      	
+    MOV AL,02					  	
+	MOV DX,OFFSET FILENAMEE			
+	INT 21H							
+	MOV HANDLE, AX
+       
+	MOV BX,0
+	mov ah,3fh
+	mov cx,200					           ;cx is how many bytes to read.
+	mov dx,offset buffer					 ; dos functions like dx having pointers for some reason.
+	mov bx,handle						 ; bx needs the file handle.
+	int 21h
+        
+	lea dx,buffer
+	mov ah,09h
+	int 21h
+
+	MVCR 10,1
+    mov ah,02h
+	mov dl,10
+	int 21h
+	mov ah,02h
+	mov dl,10
+	int 21h
+	RET
+READ_FILE ENDP
+
+WRITE_FILE PROC USES AX BX CX DX SI
+	MOV AH,3DH				      	
+	MOV AL,02					  	
+	MOV DX,OFFSET FILENAMEE			
+	INT 21H							
+	MOV HANDLE,AX
+
+	MOV BX,HANDLE
+	MOV CX,0
+	MOV DX, 0
+	MOV AH,42H
+	MOV AL,2
+	INT 21H
+	MOV AH, 40H                   ; SERVICE TO WRITE TO A FILE
+	MOV BX, HANDLE
+	MOV CX, LENGTHOF NAMEE        ; STRING LENGTH.
+	MOV DX, OFFSET NAMEE
+	INT 21H
+			
+	MOV AH, 3EH 
+	MOV BX, HANDLE
+	INT 21H
+	RET
+WRITE_FILE ENDP
+
+
+SAV_SCORE PROC USES AX BX CX DX SI
+    MOV NO_DIGG, 0
+    MOV BX, SCORE
+    LOOP_D:
+    	MOV AX, BX
+    	MOV BL, 10
+    	DIV BL
+    	MOV REMM, AH
+    	MOV QUOO, AL
+    	INC NO_DIGG
+        
+		MOV AH, 0
+		MOV BX, AX
+
+		MOV AX, 0
+		MOV AL, REMM
+		PUSH AX
+
+	CMP QUOO, 0
+	JNE LOOP_D
+    
+	MOV CX, 0
+	MOV CL, NO_DIGG
+	MOV SI,21
+	LOOP1:
+		POP BX
+		ADD BL,48
+		MOV NAMEE[SI], BL
+		INC SI
+    LOOP LOOP1
+
+	MOV AL,LEVEL
+	ADD AL,48
+	MOV NAMEE[17],AL
+	RET
+SAV_SCORE ENDP
 
 ; <----- End Functions ----->
 
